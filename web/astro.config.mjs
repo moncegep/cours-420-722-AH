@@ -32,15 +32,15 @@ export default defineConfig({
                 items: [
                     { label: 'Semaine 5', slug: 'notes/week5' },
                     { label: 'Semaine 6', slug: 'notes/week6' },
-                    // { label: 'Semaine 7', slug: 'notes/week7' },
-                    // { label: 'Semaine 8', slug: 'notes/week8' },
+                    { label: 'Semaine 7', slug: 'notes/week7' },
+                    { label: 'Semaine 8', slug: 'notes/week8' },
                 ],
             },
             {
-                label: 'Phase 3: Optimisation & Tests',
+                label: 'Phase 3: Optimisation & Évaluation',
                 items: [
-                    // { label: 'Semaine 9', slug: 'notes/week9' },
-                    // { label: 'Semaine 10', slug: 'notes/week10' },
+                    { label: 'Semaine 9', slug: 'notes/week9' },
+                    { label: 'Semaine 10', slug: 'notes/week10' },
                     // { label: 'Semaine 11', slug: 'notes/week11' },
                     // { label: 'Semaine 12', slug: 'notes/week12' },
                 ],
