@@ -5,286 +5,240 @@ import { FileTree } from "@astrojs/starlight/components";
 
 <StarlightPage
     frontmatter={{
-        title: "Projet 3: Ajout de notification et optimisation",
+        title: "Projet 3: Notifications push et optimisation",
     }}
     hasSidebar={false}
     headings={[
-        { text: "Mandat du projet", slug: "spec", depth: 2 },
+        { text: "Contexte et objectifs", slug: "contexte", depth: 2 },
+        { text: "Mandat", slug: "spec", depth: 2 },
         { text: "Application PWA (Frontend)", slug: "spec-frontend", depth: 3 },
         { text: "Serveur Express (Backend)", slug: "spec-backend", depth: 3 },
+        { text: "Déploiement et démo", slug: "deploy", depth: 3 },
         { text: "Rapport technique", slug: "report", depth: 3 },
         { text: "Évaluation", slug: "evaluation", depth: 2 },
         { text: "Remise", slug: "remise", depth: 2 },
     ]}
 >
 
-    <section>
-        <p>
-            La section <a href="https://montreal.ca/avis-et-alertes"
-                ><em>Avis et alertes</em></a
-            >
-            du site de la Ville de Montréal présente les avis et alertes qui ont été
-            émis par l'outil de gestion des alertes de la Ville. Les avis et alertes
-            communiquent les renseignements importants à la population en cas d'urgence
-            et en situations pouvant avoir un impact sur la vie quotidienne (ex: avis
-            d'ébullition d'eau, travaux, fermeture de piscine, etc.).
-        </p>
-        <p>
-            L'objectif de ce projet est de rendre l'information plus accessible et
-            plus facile à consulter pour les citoyens de Montréal. Nous voulons que
-            les informations soient accessibles en tout temps, même sans connexion
-            internet et que les citoyens reçoivent des notifications d'alertes (sur
-            leurs appareils) dès qu'elles sont émises, sans avoir à consulter
-            directement l'application.
-        </p>
-        <p>
-            Pour la troisième phase du projet, vous devez ajouter le support de
-            notification push en simulant pleinement un serveur avec Express. Vous
-            devez aussi optimiser votre application pour qu'elle soit performante et
-            agréable à utiliser. Finalement, vous devez produire un rapport
-            technique d'une page décrivant les qualités et faiblesses de votre code
-            et de votre application.
-        </p>
-    </section>
-
-    <section>
-        <h2 id="spec" style="text-transform: uppercase; font-weight: 300;">
-            Mandat
-        </h2>
-        <h3 id="spec-frontend" style="color: royalblue">
-            Application PWA (Frontend)
-        </h3>
-        <p>
-            Modifier votre application PWA produit pour le projet 2 pour y inclure les fonctionnalités suivantes
-        </p>
-        <ul>
-            <li>
-                <b>Interface utilisateur &ndash; <i style="color: #BB2649">idem que projet 2</i></b> 
-            </li>
-            <li>
-                <b>Recherche et filtre &ndash; <i style="color: #BB2649">idem que projet 2</i></b>
-            </li>
-            <li>
-                <b>Page de détail &ndash; <i style="color: #BB2649">idem que projet 2</i></b> 
-            </li>
-            <li>
-                <b>S'abonner aux alertes :</b> Lorsqu'un utilisateur clique sur le lien <b>« M'abonner »</b>, 
-                une <b>fenêtre modale (popup)</b> doit s'afficher. Cette fenêtre permet de gérer l'abonnement de
-                l'appareil de l'utilisateur aux notifications push. La fenêtre doit contenir les éléments suivants :
-                <ul style="margin: 0;">
-                    <li>
-                        Un court texte explicatif décrivant le fonctionnement des notifications (ex. : "Vous recevrez une alerte lorsque de nouveaux contenus seront disponibles.").
-                    </li>
-                    <li>
-                        Si l'appareil n'est pas encore abonné : Afficher un bouton « S'abonner » permettant d'initier le processus d'abonnement.
-                    </li>
-                    <li>
-                        Si l'appareil est déjà abonné : Afficher un bouton « Se désabonner » permettant d'annuler l'abonnement de l'appareil aux notifications.
-                    </li>
-                </ul>
-
-                <b style="color: orangered">Bonus:</b> L'utilisateur doit pouvoir choisir les avis pour lesquels il souhaite être notifié. Ci-dessous la liste des options:
-                <ul style="margin: 0;">
-                    <li>
-                        Sujet: Permet de sélectionner les sujets pour lesquels l'utilisateur souhaite être notifié.
-                    </li>
-                    <li>
-                        Arrondissement: Permet de sélectionner les arrondissements pour lesquels l'utilisateur souhaite être notifié.
-                    </li>
-                </ul>
-            </li>   
-            <li>
-                <b>Données (API Express):</b> Les données présentées dans l'application doivent provenir
-                du serveur Express (backend) plutôt que directement de l'API de la ville.
-                <ul style="margin: 0;">
-                    <li>
-                        Le serveur est responsable de récupérer les données de la ville et les 
-                        formattés pour les besoins de l'application.
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <b>Application installable (PWA):</b> L'application doit pouvoir être installé sur un
-                téléphone Android ou iOS avec un haut degré de personnalisation.
-            </li>
-            <li>
-                <b>Mode hors-ligne (PWA):</b> L'application doit être demeuré utilisable sans connexion internet.
-                <ul style="margin: 0;">
-                    <li>
-                        Les derniers avis téléchargés doivent demeurer accessible
-                    </li>
-                    <li>
-                        La navigation entre les pages doit demeurer fonctionnelle
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <b>Notification Push (PWA):</b> L'application doit être capable de recevoir des notifications du serveur Express (backend).
-                Utilisez le package <code>web-push</code> côté serveur et l'API Push côté client.
-                <ul style="margin: 0;">
-                    <li>
-                        Les notifications doivent s'afficher dans l'appareil de l'utilisateur, même si l'application n'est pas ouverte.
-                    </li>
-                    <li>
-                        <b style="color: orangered">Bonus:</b> Si l'application est ouverte, la notification doit s'afficher aussi dans l'application.
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <b>Pagination (<b style="color: orangered">Bonus</b>):</b> 
-                L'application ne doit pas afficher tous les avis/alertes en même temps. Vous pouvez 
-                limiter à 10 le nombre d'avis/alertes affichés à la fois. 
-                Vous devez choisir entre <b>deux options:</b>
-                <ul>
-                    <li>
-                        Ajouter un bouton "Charger plus" à la fin de la liste pour récupérer les 10 suivantes. <b>OU</b></li>
-                     <li>
-                        Ajouter des boutons "Page suivante" / "Page précédente" ou un système de pagination numérotée.
-                     </li>
-                </ul>
-            </li>
-        </ul>
-    
-        <h3 id="spec-backend" style="color: royalblue">
-            Serveur Express (Backend)
-        </h3>
-        <p>
-            Développer un serveur backend en Node.js avec Express qui permet de gérer les avis/alertes
-            de la Ville de Montréal ainsi que l'envoi de notifications push aux appareils abonnés. 
-            Le serveur doit respecter les spécifications fonctionnelles suivantes :
-        </p>
-        <ol>
-            <li>
-                <b>Requête GET:</b> L'API doit être capable de répondre aux requêtes GET suivantes:
-                <ul style="margin: 0;">
-                    <li>
-                        <code>GET /avis-alertes</code>: Récupère la liste des avis et alertes émis par la Ville de
-                        Montréal. Cette requête communique avec l'API de la ville pour récupérer les données puis 
-                        les formate pour l'application. <br>
-                        <b style="color: orangered">Bonus:</b> Supporter la pagination, les filtres par type ou date, et la recherche par mots-clés.
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <b>Requête POST:</b> L'API doit être capable de répondre aux requêtes POST suivantes:
-                <ul style="margin: 0;">
-                    <li>
-                        <code>POST /subscribe</code>: Permet d'enregistrer un abonnement push (subscription) d'un appareil.
-                        Le serveur doit enregistrer l'abonnement dans la base de données s'il n'est pas déjà présent.
-                    </li>
-                    <li>
-                        <code>POST /unsubscribe</code>: Supprime un abonnement push existant (identifié par son endpoint).
-                        Si l'abonnement n'est pas trouvé, retourner un message d'erreur.
-                    </li>
-                    <li>
-                        <code>POST /send-notification</code>: Envoie une notification push à tous les appareils abonnés,
-                        à l'aide du module <code>web-push</code>. Cette requête est faite par un client (ex: Postman) pour
-                        tester l'envoi de notifications. Les notifications ne sont pas des avis/alertes, mais
-                        des messages liés aux avis.
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <b>Base de données:</b> Votre serveur doit être connecté à une base de données (Firebase ou MongoDB Cloud) 
-                pour préserver les abonnements push.
-                <ul>
-                    <li>Modèle Subscription : Stocker l’objet de souscription (endpoint, clés, date de souscription).</li>  
-                    <li>Modèle Notification (<b style="color: orangered">Bonus</b>) : Journaliser les notifications envoyées (date, contenu, destinataires, succès/échecs).</li>  
-                </ul>
-            </li>
-        </ol>
-        
-        <h3 id="report" style="color: royalblue">Rapport technique</h3>
-        <p>Produisez un rapport d'une page répondant au point suivant:</p>
-        <ul>
-            <li>
-                Qualités et faiblesses du code: Analyser le code source que vous avez écrit pour le projet.
-            </li>
-            <li>
-                Qualités et faiblesses de l'application: Analysez ici le fonctionnement global de votre application PWA.
-            </li>
-            <li>
-                Propositions d'améliorations: Faites des suggestions concrètes pour améliorer votre application ou votre processus de développement.
-            </li>
-        </ul>
-    </section>
-
-
-    <section>
-        <h2 id="evaluation" style="text-transform: uppercase; font-weight: 300;">
-            Évaluation
-        </h2>
-        <p>L'évaluation de ce projet se fera en fonction des critères suivants :</p>
-    
-        <h4 style="font-weight: bold; color: rgb(223, 85, 70)">
-            Application (30%)
-        </h4>
-        <ul>
-            <li>Utilisabilité de l'interface utilisateur (UI/UX)</li>
-            <li>Adaptation de l'interface aux petits écrans.</li>
-            <li>Respect de la spécification.</li>
-        </ul>
-    
-        <h4 style="font-weight: bold; color: rgb(223, 85, 70)">
-            Fonctionnalités PWA (30%)
-        </h4>
-        <ul>
-            <li>Installation et personnalisation.</li>
-            <li>Mode hors-ligne.</li>
-            <li>Bon usage des services workers.</li>
-            <li>Bonne gestion de la cache.</li>
-            <li>Notifications push.</li>
-            <li>Bonne performance (Lighthouse)</li>
-        </ul>
-    
-        <h4 style="font-weight: bold; color: rgb(223, 85, 70)">
-            Qualité du code (20%)
-        </h4>
-        <ul>
-            <li>Pas de code inutile ou inutilisé.</li>
-            <li>Modularité et décomposition en composants.</li>
-            <li>Bonne utilisation des hooks.</li>
-            <li>Gestion des erreurs et cas extrêmes.</li>
-            <li>Documentation et README.</li>
-            <li>Maintenabilité et lisibilité.</li>
-        </ul>
-    
-        <h4 style="font-weight: bold; color: rgb(223, 85, 70)">
-            Analyse et compréhension (20%)
-        </h4>
-        <ul>
-            <li>Qualités et faiblesses du code.</li>
-            <li>Qualités et faiblesses de l'application.</li>
-            <li>Propositions d'améliorations.</li>
-        </ul>
-    </section>
-
-    <h2 id="remise" style="text-transform: uppercase; font-weight: 300;">
-        Remise
-    </h2>
+    <h2 id="contexte">Contexte et objectifs</h2>
     <p>
-        Ce projet compte pour <strong>40% de la note finale</strong>. Vous devez remettre le
-        <b>lien vers votre répertoire GitHub contenant le code source ainsi que votre rapport</b>
-        sur Léa (Omnivox) avant le <strong>1er juin.</strong>
+        Cette <strong>troisième phase</strong> complète la PWA <em>Avis et alertes</em>
+        en y ajoutant un <strong>serveur backend Node.js/Express</strong>, des
+        <strong>notifications push</strong> envoyées aux appareils abonnés, et
+        un travail d'<strong>optimisation</strong> accompagné d'une auto-analyse écrite.
     </p>
-    <h3>Précisions sur le répertoire GitHub</h3>
     <p>
-        Assurez-vous de faire une <em>release</em> de votre projet avant de le remettre
-        et de m'y inviter si vous ne l'avez pas encore fait. 
+        Le frontend, jusqu'ici branché directement sur l'API de la Ville,
+        consomme désormais un serveur intermédiaire qui récupère, formate et
+        distribue les données, en plus d'orchestrer l'envoi des notifications.
     </p>
-    <h4>Fichier README</h4>
+
+    <h4>Compétences visées</h4>
+    <ul>
+        <li>Concevoir et implémenter une API REST avec Express.</li>
+        <li>Persister des données dans une base infonuagique (MongoDB Atlas ou Firebase).</li>
+        <li>Implémenter le flux complet de notifications push Web (VAPID, subscribe, push event, display).</li>
+        <li>Orchestrer un projet full-stack (frontend + backend + base de données).</li>
+        <li>Analyser son propre code et formuler des propositions d'amélioration étayées.</li>
+    </ul>
+
+    <h2 id="spec" style="text-transform: uppercase; font-weight: 300;">Mandat</h2>
+
+    <h3 id="spec-frontend" style="color: royalblue">Application PWA (Frontend)</h3>
+    <p>Faites évoluer votre PWA du projet 2 en intégrant les changements suivants :</p>
+    <ul>
+        <li>
+            <b>Interface, recherche, filtres, page de détail, responsive &ndash; <i style="color: #BB2649">idem que projet 2</i>.</b>
+            Toute fonctionnalité incomplète du projet 2 doit être complétée ici.
+        </li>
+        <li>
+            <b style="color: #BB2649">Modale d'abonnement :</b> le lien <em>« M'abonner »</em>
+            ouvre une fenêtre modale (composant React, aucune bibliothèque externe requise).
+            <ul style="margin: 0;">
+                <li>Texte explicatif décrivant le fonctionnement des notifications.</li>
+                <li>Si l'appareil <strong>n'est pas abonné</strong> : bouton <strong>« S'abonner »</strong> qui demande la permission, crée la souscription et la transmet au serveur.</li>
+                <li>Si l'appareil <strong>est déjà abonné</strong> : bouton <strong>« Se désabonner »</strong>.</li>
+                <li>Gestion des cas : permission refusée, permission déjà bloquée au niveau du navigateur, API Push indisponible.</li>
+                <li>Fermeture via la touche <kbd>Esc</kbd> ou un bouton de fermeture.</li>
+            </ul>
+            <b style="color: orangered">Bonus :</b> permettre à l'utilisateur de choisir ses <strong>sujets</strong> et <strong>arrondissements</strong> d'intérêt. Ces préférences doivent être persistées côté serveur avec l'abonnement et filtrer les notifications reçues.
+        </li>
+        <li>
+            <b style="color: #BB2649">Source de données :</b> le frontend interroge maintenant le serveur Express plutôt que l'API de la Ville directement.
+        </li>
+        <li>
+            <b>Installabilité et mode hors-ligne &ndash; <i style="color: #BB2649">idem que projet 2</i></b>, cible Lighthouse PWA ≥ 90 maintenue.
+        </li>
+        <li>
+            <b style="color: #BB2649">Notifications push :</b>
+            <ul style="margin: 0;">
+                <li>Utilisez l'<strong>API Push</strong> et la <strong>Notifications API</strong> côté client, avec la <strong>clé VAPID publique</strong> fournie par le serveur.</li>
+                <li>Les notifications doivent s'afficher même lorsque l'application est fermée (gérées par le service worker via l'événement <code>push</code>).</li>
+                <li>Au clic sur une notification, l'utilisateur est amené à la page pertinente de l'application.</li>
+                <li><b style="color: orangered">Bonus :</b> afficher la notification <em>in-app</em> lorsque l'application est ouverte.</li>
+            </ul>
+        </li>
+        <li>
+            <b>Pagination (<b style="color: orangered">Bonus</b>) :</b> limiter à 10 avis par page.
+            Deux options : bouton « Charger plus » <strong>OU</strong> pagination numérotée.
+        </li>
+    </ul>
+
+    <h3 id="spec-backend" style="color: royalblue">Serveur Express (Backend)</h3>
     <p>
-        Le répertoire de votre projet doit contenir un fichier <i>README</i> avec les sections suivantes:
+        Développez un serveur Node.js/Express exposant une API REST. Le serveur est responsable de :
     </p>
     <ol>
-        <li>Titre et description du projet</li>
-        <li>Liste des fonctionnalités</li>
-        <li>Organisation du répertoire (backend et frontend)</li>
-        <li>Instructions pour installer et exécuter le code</li>
+        <li>Récupérer et normaliser les données de la Ville de Montréal.</li>
+        <li>Gérer les abonnements push (stockage en base).</li>
+        <li>Envoyer des notifications push aux appareils abonnés.</li>
+    </ol>
+
+    <h4>Routes</h4>
+    <ul>
+        <li>
+            <code>GET /avis-alertes</code> — Retourne la liste normalisée des avis.
+            <br /><b style="color: orangered">Bonus :</b> supporter <code>?sujet=</code>, <code>?arrondissement=</code>, <code>?q=</code>, <code>?limit=</code>, <code>?offset=</code>.
+        </li>
+        <li>
+            <code>GET /vapid-public-key</code> — Retourne la clé publique VAPID nécessaire au client pour s'abonner.
+        </li>
+        <li>
+            <code>POST /subscribe</code> — Corps : <code>{"{"} subscription, preferences? {"}"}</code>.
+            Stocke l'abonnement s'il n'existe pas déjà (clé d'unicité : <code>endpoint</code>).
+        </li>
+        <li>
+            <code>POST /unsubscribe</code> — Corps : <code>{"{"} endpoint {"}"}</code>.
+            Supprime l'abonnement correspondant. Retourne <code>404</code> si introuvable.
+        </li>
+        <li>
+            <code>POST /send-notification</code> — Corps : <code>{"{"} title, body, url? {"}"}</code>.
+            Envoie la notification à tous les abonnés (ou à ceux correspondant aux préférences, en bonus) via <code>web-push</code>. Testable depuis Postman/Insomnia.
+        </li>
+    </ul>
+
+    <h4>Conventions</h4>
+    <ul>
+        <li><strong>CORS</strong> configuré pour autoriser l'origine de votre frontend.</li>
+        <li>Réponses JSON cohérentes : succès <code>{"{"} data {"}"}</code>, erreur <code>{"{"} error, message {"}"}</code>.</li>
+        <li>Codes HTTP appropriés : <code>200</code>, <code>201</code>, <code>400</code>, <code>404</code>, <code>410</code> (abonnement expiré), <code>500</code>.</li>
+        <li>Secrets (clés VAPID, URL de connexion à la base) dans <code>.env</code> — <strong>jamais committé</strong>. Fournir un <code>.env.example</code>.</li>
+    </ul>
+
+    <h4>Base de données</h4>
+    <p>MongoDB Atlas ou Firebase Firestore. Schéma minimal :</p>
+    <ul>
+        <li>
+            <strong>Subscription</strong> : <code>endpoint</code> (unique), <code>keys</code> (<code>p256dh</code>, <code>auth</code>), <code>createdAt</code>, <code>preferences?</code> (bonus).
+        </li>
+        <li>
+            <strong>Notification</strong> (<b style="color: orangered">bonus</b>) : <code>title</code>, <code>body</code>, <code>sentAt</code>, <code>recipientsCount</code>, <code>successCount</code>, <code>failureCount</code>.
+        </li>
+    </ul>
+    <p>
+        Lorsqu'un envoi retourne <code>410</code> ou <code>404</code>, l'abonnement obsolète doit être <strong>automatiquement supprimé</strong> de la base.
+    </p>
+
+    <h3 id="deploy" style="color: royalblue">Déploiement et démo</h3>
+    <p>
+        Les notifications push <strong>requièrent HTTPS</strong>. Pour la démo en classe, deux options :
+    </p>
+    <ol>
+        <li><strong>Recommandé :</strong> déployer le frontend (Vercel, Netlify, GitHub Pages) et le backend (Render, Railway, Fly.io).</li>
+        <li>En local : servir le frontend en HTTPS (<code>vite --https</code>).</li>
+    </ol>
+    <p>
+        Indiquez clairement dans le README comment démarrer l'application et tester l'envoi de notifications.
+    </p>
+
+    <h3 id="report" style="color: royalblue">Rapport technique</h3>
+    <p>
+        Rédigez un rapport d'environ <strong>une page (≈ 500 mots)</strong>, remis en <strong>PDF</strong>
+        dans <code>docs/rapport.pdf</code>. Il doit couvrir les sections suivantes :
+    </p>
+    <ul>
+        <li>
+            <strong>Qualités et faiblesses du code :</strong> architecture, modularité, lisibilité, gestion des erreurs. Appuyez-vous sur des exemples concrets avec référence au fichier.
+        </li>
+        <li>
+            <strong>Qualités et faiblesses de l'application :</strong> UX, performance (scores Lighthouse), fiabilité des notifications, fonctionnement hors-ligne.
+        </li>
+        <li>
+            <strong>Propositions d'améliorations :</strong> au moins <strong>3 suggestions concrètes</strong>, priorisées.
+        </li>
+    </ul>
+
+    <h2 id="evaluation" style="text-transform: uppercase; font-weight: 300;">Évaluation</h2>
+
+    <h4 style="font-weight: bold; color: rgb(223, 85, 70)">Application (25 %)</h4>
+    <ul>
+        <li>Utilisabilité (UI/UX) et responsive.</li>
+        <li>Respect de la spécification frontend.</li>
+        <li>Qualité de la modale d'abonnement (incluant cas limites).</li>
+    </ul>
+
+    <h4 style="font-weight: bold; color: rgb(223, 85, 70)">Fonctionnalités PWA (25 %)</h4>
+    <ul>
+        <li>Installabilité et personnalisation.</li>
+        <li>Mode hors-ligne et service worker.</li>
+        <li>Gestion de la mise en cache.</li>
+        <li>Notifications push (bout en bout, incluant clic et navigation).</li>
+        <li>Performance Lighthouse.</li>
+    </ul>
+
+    <h4 style="font-weight: bold; color: rgb(223, 85, 70)">Backend (20 %)</h4>
+    <ul>
+        <li>Exactitude des routes et des contrats d'API.</li>
+        <li>Intégration avec la base de données.</li>
+        <li>Gestion des erreurs et des abonnements expirés.</li>
+        <li>Sécurité des secrets (variables d'environnement).</li>
+    </ul>
+
+    <h4 style="font-weight: bold; color: rgb(223, 85, 70)">Qualité du code (15 %)</h4>
+    <ul>
+        <li>Modularité, décomposition, usage des hooks.</li>
+        <li>Absence de code mort ou dupliqué.</li>
+        <li>Documentation et README.</li>
+    </ul>
+
+    <h4 style="font-weight: bold; color: rgb(223, 85, 70)">Rapport et maîtrise (15 %)</h4>
+    <ul>
+        <li>Rapport technique (pertinence, exemples concrets, propositions priorisées).</li>
+        <li>Évaluation orale en classe.</li>
+    </ul>
+
+    <p style="margin-top: 12px;">
+        Les <strong>bonus</strong> peuvent ajouter jusqu'à <strong>+10 points</strong> sur 100, non cumulables au-delà de ce plafond.
+    </p>
+
+    <h2 id="remise" style="text-transform: uppercase; font-weight: 300;">Remise</h2>
+    <p>
+        Ce projet compte pour <strong>40 % de la note finale</strong>. Vous devez remettre,
+        sur Léa (Omnivox), avant le <strong>lundi 1<sup>er</sup> juin 23 h 59</strong> :
+    </p>
+    <ul>
+        <li>Le lien vers votre dépôt GitHub (avec une <em>release</em> étiquetée).</li>
+        <li>Le rapport PDF (également inclus dans le dépôt sous <code>docs/rapport.pdf</code>).</li>
+    </ul>
+    <p>
+        Pénalité de <strong>5 % par jour de retard</strong>. Toute remise doit impérativement être
+        effectuée avant l'évaluation orale.
+        <br />
+        <strong>Évaluation orale en classe le mardi 2 juin</strong> (~ 15 min par étudiant·e).
+    </p>
+
+    <h3>Précisions sur le dépôt GitHub</h3>
+    <h4>Fichier README</h4>
+    <ol>
+        <li>Titre et description du projet.</li>
+        <li>Liste des fonctionnalités (incluant les bonus implémentés).</li>
+        <li>Organisation du dépôt (backend, frontend, docs).</li>
+        <li>Instructions d'installation et de démarrage (frontend, backend, base de données).</li>
+        <li>Variables d'environnement requises (sans valeurs).</li>
+        <li>Procédure pour tester l'envoi d'une notification.</li>
+        <li>URL de déploiement, le cas échéant.</li>
     </ol>
     <h4>Organisation suggérée</h4>
-    <p>Voici une organisation suggérée pour votre répertoire:</p>
-
     <FileTree>
         <ul>
             <li>backend/    <b>Serveur Express.js</b>
@@ -292,11 +246,10 @@ import { FileTree } from "@astrojs/starlight/components";
                     <li>db/</li>
                     <li>routes/</li>
                     <li>utils/</li>
-                    <li>.env</li>
+                    <li>.env.example</li>
                     <li>index.js</li>
                     <li>package.json</li>
                     <li>.gitignore</li>
-                    <li>...</li>
                 </ul>
             </li>
             <li>frontend/   <b>Application PWA React</b>
@@ -304,8 +257,7 @@ import { FileTree } from "@astrojs/starlight/components";
                     <li>public/
                         <ul>
                             <li>icons/</li>
-                            <li>manifest.json</li>
-                            <li>sw.js</li>
+                            <li>manifest.webmanifest</li>
                         </ul>
                     </li>
                     <li>src/
@@ -315,22 +267,20 @@ import { FileTree } from "@astrojs/starlight/components";
                             <li>hooks/</li>
                             <li>pages/</li>
                             <li>services/</li>
-                            <li>utils/</li>
+                            <li>sw.js</li>
                             <li>main.jsx</li>
                         </ul>
                     </li>
-                    <li>.gitignore</li>
+                    <li>.env.example</li>
                     <li>index.html</li>
                     <li>vite.config.js</li>
                     <li>package.json</li>
-                    <li>...</li>
+                    <li>.gitignore</li>
                 </ul>
             </li>
-            <li>
-                docs/
+            <li>docs/
                 <ul>
                     <li>rapport.pdf</li>
-                    <li>...</li>
                 </ul>
             </li>
             <li>.gitignore</li>

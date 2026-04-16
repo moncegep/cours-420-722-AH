@@ -1,25 +1,28 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-
 import react from '@astrojs/react';
-
 import netlify from '@astrojs/netlify';
 
 // https://astro.build/config
 export default defineConfig({
     integrations: [starlight({
-        title: 'AH-PWA-H25',
+        title: 'PWA + Cadriciel',
+        defaultLocale: "root",
+        locales: {
+            root: {
+                label: 'Français',
+                lang: 'fr',
+            }
+        },
         social: {
-            github: 'https://github.com/ceduni/cah-pwa',
-            discord: 'https://discord.gg/eNqwjeDhP6',
+            github: 'https://github.com/ceduni/cah-pwa'
         },
         favicon: '/favicon.ico',
-        lastUpdated: true,
-        pagefind: false,
+        lastUpdated: false,
         sidebar: [
             {
-                label: 'Phase 1: App. web avec cadriciel',
+                label: 'Phase 1: Application web avec cadriciel',
                 items: [
                     { label: 'Semaine 1', slug: 'notes/week1' },
                     { label: 'Semaine 2', slug: 'notes/week2' },
@@ -32,15 +35,15 @@ export default defineConfig({
                 items: [
                     { label: 'Semaine 5', slug: 'notes/week5' },
                     { label: 'Semaine 6', slug: 'notes/week6' },
-                    { label: 'Semaine 7', slug: 'notes/week7' },
-                    { label: 'Semaine 8', slug: 'notes/week8' },
+                    // { label: 'Semaine 7', slug: 'notes/week7' },
+                    // { label: 'Semaine 8', slug: 'notes/week8' },
                 ],
             },
             {
-                label: 'Phase 3: Optimisation & Évaluation',
+                label: 'Phase 3: Optimisation & Évaluation de PWA',
                 items: [
-                    { label: 'Semaine 9', slug: 'notes/week9' },
-                    { label: 'Semaine 10', slug: 'notes/week10' },
+                    // { label: 'Semaine 9', slug: 'notes/week9' },
+                    // { label: 'Semaine 10', slug: 'notes/week10' },
                     // { label: 'Semaine 11', slug: 'notes/week11' },
                     // { label: 'Semaine 12', slug: 'notes/week12' },
                 ],
@@ -54,14 +57,10 @@ export default defineConfig({
             	label: 'Reference',
             	autogenerate: { directory: 'reference' },
             },
-        ],
-        locales: {
-            root: {
-                label: 'Français',
-                lang: 'fr'
-            },
-        },
-    }), react()],
+        ]
+    }), 
+    react()
+],
 
     adapter: netlify(),
 });

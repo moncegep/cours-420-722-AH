@@ -1,0 +1,318 @@
+---
+title: Service Workers et stratégies de cache
+description: Enregistrement, cycle de vie, événements et stratégies de mise en cache d'un Service Worker
+lastUpdated: 2026-04-16
+---
+
+## Qu'est-ce qu'un Service Worker ?
+
+Un **Service Worker** (SW) est un script JavaScript qui s'exécute en arrière-plan, **séparément de votre page web**. Contrairement aux scripts classiques :
+
+- Il n'a **pas accès au DOM**.
+- Il reste **actif même quand la page est fermée**.
+- Il peut **intercepter toutes les requêtes réseau** de son périmètre.
+
+Un SW est donc un *proxy programmable* entre votre application et le réseau. C'est ce qui permet à une PWA de fonctionner hors-ligne, de recevoir des notifications push et d'accélérer le chargement.
+
+### Utilités principales
+
+1. **Fonctionnement hors-ligne** — servir des ressources depuis le cache quand le réseau est absent.
+2. **Performance** — répondre instantanément depuis le cache au lieu d'attendre le réseau.
+3. **Notifications push** — recevoir des messages du serveur même quand l'application est fermée.
+4. **Synchronisation en arrière-plan** — retenter un envoi raté quand la connexion revient.
+
+:::caution[HTTPS obligatoire]
+Un Service Worker ne peut s'enregistrer que sur une origine **HTTPS** ou **`localhost`**. C'est une mesure de sécurité : sans ça, un attaquant pourrait installer un SW pour intercepter tout le trafic.
+:::
+
+## Enregistrer un Service Worker
+
+Votre fichier de SW est un JavaScript classique, typiquement placé dans `public/sw.js`. Il faut ensuite l'**enregistrer** depuis votre application :
+
+```js title="src/main.jsx"
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+
+// Enregistrement du Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW enregistré :', reg.scope))
+      .catch(err => console.error('Échec enregistrement SW :', err));
+  });
+}
+```
+
+:::note[Portée (scope) d'un SW]
+Un Service Worker ne contrôle que les URLs situées **à son niveau ou en dessous** dans l'arborescence. Un SW servi depuis `/sw.js` contrôle `/*` — tout le site. Un SW servi depuis `/app/sw.js` ne contrôle que `/app/*`. **Placez toujours votre `sw.js` à la racine** (dossier `public/` en Vite).
+:::
+
+## Le cycle de vie d'un Service Worker
+
+![cycle de vie d'un Service Worker](./../../../assets/images/sw-lifecycle.png)
+
+- **`install`** — Le SW vient d'être téléchargé. On y précache les ressources de base.
+- **`waiting`** — Si un ancien SW contrôle déjà des pages, le nouveau attend qu'elles soient fermées avant de prendre le relais. On peut court-circuiter cette étape avec `self.skipWaiting()`.
+- **`activate`** — Le SW est maintenant celui qui contrôle le site. On y fait le ménage des anciens caches. Pour qu'il contrôle **immédiatement** les pages déjà ouvertes, on appelle `self.clients.claim()`.
+- **`idle`** — Le SW attend un événement (`fetch`, `push`, `sync`…).
+
+:::tip[`skipWaiting` + `clients.claim` = mise à jour immédiate]
+Par défaut, un nouveau SW n'est actif qu'après la fermeture de tous les onglets de l'application. En dev, c'est pénible. La combinaison `skipWaiting()` dans `install` + `clients.claim()` dans `activate` force le nouveau SW à prendre le contrôle tout de suite. À utiliser avec précaution en production (changement brutal pour l'utilisateur).
+:::
+
+## Les événements clés
+
+### `install` : pré-cacher les ressources statiques
+
+```js
+const CACHE = 'avis-mtl-v1';
+const ASSETS = ['/', '/index.html', '/manifest.webmanifest'];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
+  );
+  self.skipWaiting();
+});
+```
+
+### `activate` : nettoyer les anciens caches
+
+```js
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(clefs =>
+      Promise.all(
+        clefs
+          .filter(c => c !== CACHE)
+          .map(c => caches.delete(c))
+      )
+    )
+  );
+  self.clients.claim();
+});
+```
+
+### `fetch` : intercepter les requêtes
+
+```js
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(r => r || fetch(event.request))
+  );
+});
+```
+
+### `push` : recevoir une notification (aperçu)
+
+```js
+self.addEventListener('push', event => {
+  const data = event.data?.json() ?? {};
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? 'Avis MTL', {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      data: { url: data.url ?? '/' }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow(event.notification.data.url));
+});
+```
+
+### `sync` : reprendre une action quand le réseau revient
+
+```js
+self.addEventListener('sync', event => {
+  if (event.tag === 'envoyer-messages') {
+    event.waitUntil(envoyerMessagesEnAttente());
+  }
+});
+```
+
+:::caution[Support limité]
+`SyncManager` (Background Sync) fonctionne sur Chrome et Edge mais **pas sur Firefox ni Safari**. À traiter comme un bonus d'amélioration progressive.
+:::
+
+## Stratégies de mise en cache
+
+Le choix de la stratégie dépend du type de ressource. Voici la carte de décision :
+
+| Stratégie | Priorité | Utiliser pour |
+|---|---|---|
+| **Cache First** | Cache, puis réseau si absent | Assets statiques qui changent peu (CSS, JS, polices, images) |
+| **Network First** | Réseau, puis cache si échec | Pages HTML dynamiques, contenu utilisateur |
+| **Stale-While-Revalidate** | Cache immédiatement + réseau en arrière-plan | **Réponses d'API** où la fraîcheur est souhaitable mais pas critique |
+| **Network Only** | Toujours le réseau | Données sensibles, authentification, POST/PUT |
+| **Cache Only** | Toujours le cache | Ressources précachées à l'install, version offline stricte |
+
+### Cache First
+
+```js "caches.match(event.request).then(r => r || fetch(event.request))"
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(r => r || fetch(event.request))
+  );
+});
+```
+
+### Network First
+
+```js
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    fetch(event.request)
+      .then(res => {
+        const clone = res.clone();
+        caches.open('dynamic-v1').then(c => c.put(event.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+```
+
+### Stale-While-Revalidate
+
+La plus intéressante pour une API : l'utilisateur voit du contenu **instantanément** depuis le cache, pendant que le SW va chercher une version fraîche en arrière-plan.
+
+```js
+const API = /\/avis-alertes/;
+
+self.addEventListener('fetch', event => {
+  if (!API.test(event.request.url)) return;
+
+  event.respondWith(
+    caches.open('api-v1').then(cache =>
+      cache.match(event.request).then(cached => {
+        const reseau = fetch(event.request).then(res => {
+          cache.put(event.request, res.clone());
+          return res;
+        });
+        return cached || reseau;
+      })
+    )
+  );
+});
+```
+
+### Network Only / Cache Only
+
+```js
+// Network Only (rien à mettre en cache)
+event.respondWith(fetch(event.request));
+
+// Cache Only (jamais de requête)
+event.respondWith(caches.match(event.request));
+```
+
+## Versionner le cache (cache busting)
+
+Quand vous modifiez votre application, il faut que les utilisateurs reçoivent la nouvelle version. La technique :
+
+1. **Changer le nom du cache** à chaque déploiement (`avis-mtl-v1` → `avis-mtl-v2`).
+2. **Supprimer les anciens caches** dans l'événement `activate`.
+
+```js
+const CACHE = 'avis-mtl-v2';  // ← incrémentez à chaque déploiement
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(clefs =>
+      Promise.all(clefs.filter(c => c !== CACHE).map(c => caches.delete(c)))
+    )
+  );
+});
+```
+
+Sans ce mécanisme, vos utilisateurs pourraient rester coincés des jours entiers sur une version périmée.
+
+## Déboguer un Service Worker
+
+Chrome DevTools → onglet **Application** → section **Service Workers** :
+
+- **« Update on reload »** — recharge le SW à chaque `F5` (indispensable en dev).
+- **« Bypass for network »** — contourne temporairement le SW pour tester sans cache.
+- **« Unregister »** — désinstalle complètement le SW (quand vous cassez tout et que vous voulez repartir propre).
+- **Onglet Cache Storage** — inspecte le contenu précis du cache.
+- **Console du SW** — les `console.log` du SW s'affichent ici, pas dans la console de la page.
+
+:::caution[Le SW est un service en arrière-plan tenace]
+Il peut survivre à des fermetures d'onglet et continuer à servir du contenu périmé. Si quelque chose semble « coincé », commencez par **Unregister** et **vider le cache**.
+:::
+
+## `vite-plugin-pwa` et Workbox
+
+Écrire un Service Worker à la main est formateur, mais en production on utilise des outils qui automatisent les patterns courants.
+
+[**Workbox**](https://developer.chrome.com/docs/workbox) est la bibliothèque officielle de Google pour construire des SW. Elle fournit des modules prêts à l'emploi pour chaque stratégie de cache, la gestion des versions, la synchronisation, etc.
+
+`vite-plugin-pwa` (vu en [semaine 5](/notes/week5/)) est construit sur Workbox. En configuration par défaut, il génère automatiquement :
+
+- Un précache pour tous les assets de votre build.
+- Un SW avec `registerType: 'autoUpdate'` qui notifie l'utilisateur d'une nouvelle version.
+
+Vous pouvez y ajouter vos propres règles :
+
+```js title="vite.config.js"
+VitePWA({
+  workbox: {
+    runtimeCaching: [
+      {
+        urlPattern: /\/avis-alertes/,
+        handler: 'StaleWhileRevalidate',
+        options: { cacheName: 'api-avis' }
+      }
+    ]
+  }
+})
+```
+
+## Erreurs communes à éviter
+
+| Erreur | Symptôme | Correction |
+|---|---|---|
+| Oublier `navigator.serviceWorker.register(...)` | Le SW ne s'exécute jamais | Enregistrer dans `main.jsx` |
+| Placer `sw.js` ailleurs qu'à la racine | Portée restreinte à un sous-dossier | Mettre dans `public/sw.js` |
+| Ne pas changer le nom du cache entre versions | Utilisateurs bloqués sur l'ancienne version | Incrémenter `CACHE = 'app-v2'` et nettoyer dans `activate` |
+| Tester sans **Update on reload** | Modifications invisibles | Cocher la case dans DevTools Application |
+| Mettre une requête POST en cache | Erreur runtime | Filtrer dans `fetch` : `if (event.request.method !== 'GET') return;` |
+| Utiliser Cache First pour une API | Données périmées ad vitam | Utiliser Network First ou Stale-While-Revalidate |
+| Essayer sur `file://` ou HTTP public | Le SW ne s'enregistre pas | HTTPS ou `localhost` obligatoire |
+
+## Récapitulatif
+
+1. Un **Service Worker** est un proxy programmable entre votre app et le réseau, exécuté en arrière-plan.
+2. Il s'**enregistre** depuis `main.jsx` via `navigator.serviceWorker.register()`.
+3. Sa **portée** est définie par l'emplacement du fichier — mettez-le à la racine.
+4. Son **cycle de vie** passe par `install` → `waiting` → `activate`, puis il attend des événements.
+5. **Cinq stratégies de cache** couvrent la plupart des besoins. Pour une API, **Stale-While-Revalidate** est l'option par défaut.
+6. **Versionner le nom du cache** et nettoyer à `activate` est obligatoire pour gérer les déploiements.
+7. L'onglet **Application** de DevTools est votre meilleur ami pour déboguer.
+8. En production, **`vite-plugin-pwa`** (basé sur Workbox) évite 80 % du code bas niveau.
+
+## Exercices
+
+1. **Enregistrement.** Ajoutez un `sw.js` vide dans `public/`, enregistrez-le depuis `main.jsx`, et vérifiez dans DevTools → Application qu'il s'active.
+2. **Précache.** Dans `install`, pré-cachez `/`, `/index.html` et votre manifeste. Testez en mode hors-ligne : l'application doit se lancer.
+3. **Stale-While-Revalidate.** Implémentez cette stratégie pour les requêtes vers `/avis-alertes`. Modifiez les données, rafraîchissez, observez que la première vue est l'ancienne puis se met à jour.
+4. **Versioning.** Changez `CACHE_NAME = 'v1'` en `v2`, vérifiez dans `activate` que les anciennes versions sont supprimées. Observez dans Cache Storage.
+5. **Migration vers `vite-plugin-pwa`.** Remplacez votre SW manuel par `vite-plugin-pwa` avec une règle `runtimeCaching` équivalente. Comparez les deux approches.
+
+## Ressources
+
+- [MDN — API Service Worker](https://developer.mozilla.org/fr/docs/Web/API/Service_Worker_API)
+- [MDN — API Cache](https://developer.mozilla.org/fr/docs/Web/API/Cache)
+- [web.dev — Cycle de vie d'un SW](https://web.dev/articles/service-worker-lifecycle?hl=fr)
+- [Workbox — Stratégies de cache](https://developer.chrome.com/docs/workbox/caching-strategies-overview)
+- [`vite-plugin-pwa` — Documentation](https://vite-pwa-org.netlify.app/)

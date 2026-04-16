@@ -17,9 +17,9 @@ function DataFetcher() {
   }
 
   return (
-    <div>
+    <div style={{padding: "12px", background: "#f0f0f0", borderRadius: "6px"}}>
       <p>Données: {data ?? "Aucune donnée"}</p>
-      <button onClick={handleUpdate}>Update!</button>
+      <button style={{background: "royalblue", color: "white", border: "none", borderRadius: "2px"}} onClick={handleUpdate}>Update!</button>
     </div>
   );
 }

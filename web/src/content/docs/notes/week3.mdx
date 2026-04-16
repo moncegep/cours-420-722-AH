@@ -1,65 +1,106 @@
 ---
-title: Gestion des évènements et des formulaires
-description: Introduction aux composants et hooks dans React
-lastUpdated: 2025-03-24
+title: Hooks, évènements et formulaires
+description: Hooks intégrés, gestion des évènements, hooks personnalisés et formulaires en React
+lastUpdated: 2026-04-16
 ---
 
 import DataFetcher from '../../../components/react/DataFetcher.jsx';
 
 ## Introduction aux hooks
 
-Un Hook est une fonction spéciale qui permet d'utiliser les fonctionnalités de React (comme l’état et le cycle de vie) dans les composants fonctionnels.
+Un **hook** est une fonction fournie par React qui donne accès à certaines de ses capacités (état, effets, références, contexte) depuis un composant fonctionnel. 
+{/* Avant les hooks, ces capacités n'étaient disponibles que dans les composants écrits sous forme de classe ; aujourd'hui, on utilise presque exclusivement des composants fonctionnels avec hooks. */}
 
-Les hooks dans React permettent de gérer l'état et d'autres fonctionnalités du cycle de vie des composants. Les hooks sont des fonctions qui permettent aux composants d'avoir des fonctionnalités comme la gestion de l'état, l'accès aux méthodes du cycle de vie, ou encore la gestion des effets secondaires (side effects).
-En utilisant les hooks, nous pouvons mieux structurer l'application et rendre le code plus lisible, réutilisable et plus facile à maintenir.
+En semaine 2, vous avez déjà utilisé un hook : `useState`. Cette semaine, nous en ajoutons deux autres (`useEffect`, `useRef`), nous voyons comment gérer les évènements et les formulaires, et nous apprenons à écrire **nos propres hooks**.
 
-### Cycle de vie des composants
+### Les règles des hooks
 
-Le cycle de vie d'un composant React décrit les différentes étapes par lesquelles passe un composant depuis sa création jusqu'à sa destruction. Il peut être divisé en trois grandes phases :
+Avant d'aller plus loin, deux règles qu'il faut absolument respecter :
 
-1. Montée en charge (Mounting): Cela se produit lorsqu'un composant est créé et inséré dans le DOM pour la première fois.
-2. Mise à jour (Updating): Lorsqu'un composant reçoit de nouveaux props ou lorsque son état change, il entre dans la phase de mise à jour.
-3. Démontage (Unmounting): Cette phase se produit lorsque le composant est retiré du DOM.
+1. **Toujours appeler les hooks au niveau supérieur** du composant. Jamais à l'intérieur d'une condition, d'une boucle, ou d'une fonction imbriquée.
+2. **N'appeler les hooks que depuis un composant React ou un autre hook personnalisé**. Jamais depuis une fonction JavaScript ordinaire.
 
-Les hooks permettent de gérer le cycle de vie dans les composants fonctionnels, en utilisant par exemple le hook useEffect pour simuler les comportements de montage, mise à jour et démontage.
+Ces règles permettent à React d'associer correctement chaque appel de hook à la bonne « case mémoire » du composant. 
 
-## Hooks intégrés
+### Le cycle de vie d'un composant
 
-React fourni de base quelques hooks integrées à la libraire.
+Un composant passe par trois moments clés :
 
-:::note
-Pour la liste complète des hooks fournis par React, consultez le [site de référence](https://fr.react.dev/reference/react/hooks)
+1. **Apparition** (il est rendu pour la première fois et inséré dans le DOM).
+2. **Mise à jour** (ses props changent, ou son état interne change).
+3. **Disparition** (il est retiré du DOM).
+
+Le hook `useEffect` permet de réagir à ces moments depuis un composant fonctionnel.
+
+## `useState` : un rappel
+
+```jsx
+const [valeur, setValeur] = useState(valeurInitiale);
+```
+
+- `valeur` est l'état courant.
+- `setValeur` permet de le mettre à jour et déclenche un nouveau rendu.
+- `useState(...)` est invoqué une fois, à l'apparition du composant.
+
+Appelez `setValeur` **dans un gestionnaire d'évènement** ou **dans un effet**.
+
+:::tip[Mise à jour basée sur la valeur précédente]
+Lorsque la nouvelle valeur dépend de l'ancienne, préférez la forme fonctionnelle :
+
+```jsx
+setCompteur(prev => prev + 1);
+```
+
+Elle est plus sûre si plusieurs mises à jour s'enchaînent rapidement.
 :::
 
-### useState (rappel)
+## `useEffect` : les effets de bord
 
-`useState` permet de gérer l'état local dans un composant fonctionnel.
+Un **effet de bord** est tout ce qui sort du « rendu pur » d'un composant : appel HTTP (fetch), abonnement à un évènement global, modification du titre de la page, minuterie, etc.
 
-### useEffect - Gérer les effets de bord
+```jsx
+useEffect(() => {
+  // code à exécuter après le rendu
+  return () => {
+    // fonction de nettoyage (optionnelle)
+  };
+}, [dependances]);
+```
 
-`useEffect` permet d'exécuter du code après le rendu d'un composant. Il remplace les méthodes de cycle de vie des classes comme *componentDidMount*, *componentDidUpdate* et *componentWillUnmount*.  Il est souvent utilisé pour :
+### Le tableau de dépendances
 
-- Requêtes API après le premier rendu.
-- Abonnements à des événements (ex: écouteurs de clic).
-- Mise à jour du DOM (ex: titre de la page).
-- Nettoyage des effets lors du démontage du composant.
+C'est **le** point à bien comprendre. Il contrôle **quand** l'effet s'exécute :
+
+| Forme | Exécution |
+|---|---|
+| `useEffect(() => {...})` | Après **chaque** rendu. <br/> ⚠️ Risque de boucle infinie si l'effet modifie l'état. |
+| `useEffect(() => {...}, [])` | Une seule fois, à l'apparition du composant. |
+| `useEffect(() => {...}, [x, y])` | À l'apparition, puis chaque fois que `x` ou `y` change. |
+
+### Exemple : récupérer des données d'une API
 
 ```jsx
 import { useState, useEffect } from "react";
 
 function DataFetcher() {
   const [data, setData] = useState(null);
+  const [erreur, setErreur] = useState(null);
+  const [chargement, setChargement] = useState(true);
 
   useEffect(() => {
+    setChargement(true);
     fetch("https://jsonplaceholder.typicode.com/todos/1")
-      .then((response) => response.json())
-      .then((json) => setData(json));
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((json) => setData(json))
+      .catch((err) => setErreur(err.message))
+      .finally(() => setChargement(false));
+  }, []); // s'exécute une seule fois à l'apparition
 
-    return () => {
-      console.log("Nettoyage du composant");
-    };
-  }, []); // Le tableau vide signifie que ça s'exécute une seule fois (au montage)
-
+  if (chargement) return <p>Chargement…</p>;
+  if (erreur)    return <p>Erreur : {erreur}</p>;
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 
@@ -71,48 +112,76 @@ export default DataFetcher;
   <DataFetcher client:idle />
 </div>
 
-### useRef - Accéder aux Références
+### La fonction de nettoyage
 
-`useRef` permet de stocker une référence mutable qui persiste entre les rendus sans provoquer de re-render. Il est souvent utilisé pour :
+Si l'effet met en place quelque chose qui doit être défait (écouteur d'évènement, minuterie, abonnement), retournez une fonction de nettoyage :
 
-- Référencer un élément du DOM (ex: champ input pour focus automatique).
-- Stocker une valeur qui ne déclenche pas de re-render.
-- Garder une valeur entre les rendus sans modifier l'état (useState).
+```jsx
+useEffect(() => {
+  const id = setInterval(() => console.log("tic"), 1000);
+  return () => clearInterval(id); // nettoyage au démontage
+}, []);
+```
+
+:::note[Strict Mode]
+En mode développement, React invoque volontairement `useEffect` **deux fois** (apparition → nettoyage → apparition) pour débusquer les effets mal nettoyés. Ce comportement disparaît en production.
+:::
+
+## `useRef` : références mutables
+
+`useRef` sert à conserver une valeur **entre les rendus** sans déclencher de nouveau rendu quand elle change. Deux usages principaux :
+
+### 1. Référencer un élément du DOM
 
 ```jsx
 import { useRef, useEffect } from "react";
 
-function AutoFocusInput() {
+function ChampAutoFocus() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    inputRef.current.focus(); // Met le focus sur l'input dès le chargement
+    inputRef.current.focus();
   }, []);
 
-  return <input ref={inputRef} placeholder="Tape ici..." />;
+  return <input ref={inputRef} placeholder="Tapez ici…" />;
 }
-
-export default AutoFocusInput;
 ```
 
-### useContext – Gérer un Contexte Global
+### 2. Conserver une valeur mutable
+
+```jsx
+const compteurDeClics = useRef(0);
+
+function handleClick() {
+  compteurDeClics.current += 1;
+  // mise à jour silencieuse : ne déclenche pas de nouveau rendu
+}
+```
+
+### `useState` ou `useRef` ?
+
+| Critère | `useState` | `useRef` |
+|---|---|---|
+| Déclenche un rendu quand la valeur change | ✅ Oui | ❌ Non |
+| La valeur doit s'afficher | ✅ | ❌ |
+| Accès à un élément du DOM | ❌ | ✅ |
+| Stocker une valeur sans l'afficher (minuterie, identifiant précédent…) | ❌ | ✅ |
+
+**Règle simple :** si la valeur est affichée ou influence ce qui est affiché, c'est du `useState`. Sinon, c'est du `useRef`.
+
+## `useContext` : un aperçu
+
+`useContext` permet de partager une valeur (thème, utilisateur connecté, langue) avec tous les composants descendants sans avoir à la passer en props à chaque niveau.
 
 :::note
-Nous revisiterons ce hook dans la semaine abordant la gestion du contexte d'une application
+Nous reviendrons en détail sur `useContext` lors de la semaine consacrée à la gestion de l'état global.
 :::
-
-`useContext` permet d'utiliser une valeur globale (comme un thème, une langue, ou une session utilisateur) sans avoir à passer des props à tous les composants enfants (évite le prop drilling).  Il est souvent utilisé pour :
-
-- Gérer le thème de l'application (mode clair/sombre).
-- Préserver l'utilisateur connecté.
-- Gérer la langue et les fichiers de traduction.
-- Partager un état global entre composants.
 
 ## Gestion des évènements
 
-En React, la gestion des événements est similaire à JavaScript, mais avec quelques différences importantes. Au lieu d'utiliser addEventListener, les événements sont directement attachés aux éléments JSX via des attributs nommés en camelCase.
+En React, les évènements s'attachent via des attributs JSX en **camelCase** (`onClick`, `onChange`, `onSubmit`…) et la valeur est une fonction, pas une chaîne.
 
-```jsx "onClick={handleClick}" "handleClick()"
+```jsx "onClick={handleClick}"
 function Bouton() {
   function handleClick() {
     alert("Bouton cliqué !");
@@ -122,49 +191,81 @@ function Bouton() {
 }
 ```
 
-### Passage d'arguments à un gestionnaire d'événements
+### L'objet `event`
 
-```jsx "showMessage(message)"
-function MessageButton({ message }) {
-  function showMessage(msg) {
-    alert(msg);
+Chaque gestionnaire reçoit un objet `event` (souvent nommé `e`) qui contient des informations sur l'évènement :
+
+```jsx
+function ChampRecherche() {
+  function handleChange(e) {
+    console.log(e.target.value);  // valeur actuelle du champ
+    console.log(e.target.name);   // attribut name du champ
   }
 
-  return <button onClick={() => showMessage(message)}>Afficher le message</button>;
+  return <input name="recherche" onChange={handleChange} />;
 }
 ```
 
-### Passer un gestionnaire d’événements à un composant enfant
+Méthodes utiles :
 
-Dans React, il est courant qu’un composant parent gère l’état et passe des gestionnaires d’événements (event handlers) aux composants enfants. Cela permet une communication contrôlée entre composants.
+- **`e.preventDefault()`** : empêche le comportement par défaut (p. ex. soumission d'un formulaire qui recharge la page).
+- **`e.stopPropagation()`** : empêche l'évènement de remonter aux parents.
+
+### Passer des arguments à un gestionnaire
+
+```jsx
+function BoutonMessage({ message }) {
+  function afficher(msg) {
+    alert(msg);
+  }
+
+  // On encapsule dans une fonction fléchée pour différer l'appel
+  return <button onClick={() => afficher(message)}>Afficher</button>;
+}
+```
+
+### Passer un gestionnaire à un enfant
+
+C'est le pattern clé pour faire remonter une action d'un composant enfant vers un parent :
 
 ```jsx
 import { useState } from "react";
 
 function Bouton({ onClick }) {
-  return <button onClick={onClick}>Clique-moi</button>;
+  return <button onClick={onClick}>Cliquez-moi</button>;
 }
 
-export default function Parent() {
-  const [count, setCount] = useState(0);
-
-  function incrementer() {
-    setCount((prev) => prev + 1);
-  }
+function Parent() {
+  const [compteur, setCompteur] = useState(0);
 
   return (
     <div>
-      <h2>Compteur : {count}</h2>
-      <Bouton onClick={incrementer} />
+      <h2>Compteur : {compteur}</h2>
+      <Bouton onClick={() => setCompteur(prev => prev + 1)} />
     </div>
   );
 }
 ```
 
-#### Création d’un Hook personnalisé pour gérer les clics en dehors d’un élément (useClickOutside)
+Le parent détient l'état et contrôle les changements ; l'enfant se contente de signaler « l'utilisateur a cliqué ». Cette séparation est essentielle dans une application React.
+
+## Hooks personnalisés
+
+Un **hook personnalisé** est simplement une fonction JavaScript qui utilise d'autres hooks et dont le nom commence par `use`. On les écrit pour :
+
+- **Réutiliser** une logique à travers plusieurs composants.
+- **Isoler** une logique complexe hors du composant pour le rendre plus lisible.
+
+:::caution[Convention de nommage obligatoire]
+Un hook personnalisé **doit** commencer par `use` (`useClickOutside`, `useFormulaire`, `useAlertes`…). Sans ce préfixe, ESLint ne saura pas que la fonction est un hook et ne vérifiera pas les règles des hooks. 
+:::
+
+### Exemple : `useClickOutside`
+
+Ce hook détecte un clic **en dehors** d'un élément donné. Très utile pour fermer une modale ou un menu déroulant.
 
 ```jsx
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 function useClickOutside(ref, onOutsideClick) {
   useEffect(() => {
@@ -176,18 +277,22 @@ function useClickOutside(ref, onOutsideClick) {
 
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [onOutsideClick]);
-
-  return ref;
+  }, [ref, onOutsideClick]);
 }
+```
 
-export default function Modal({ onClose }) {
-  const modalRef = useRef(null);
-  useClickOutside(modalRef, onClose);
+Utilisation dans une modale :
+
+```jsx
+import { useRef } from "react";
+
+function Modale({ onClose, enfants }) {
+  const modaleRef = useRef(null);
+  useClickOutside(modaleRef, onClose);
 
   return (
-    <div ref={modalRef} style={{ padding: 20, background: "white", border: "1px solid black" }}>
-      <p>Contenu du modal</p>
+    <div ref={modaleRef} className="modale">
+      {enfants}
       <button onClick={onClose}>Fermer</button>
     </div>
   );
@@ -196,16 +301,11 @@ export default function Modal({ onClose }) {
 
 ## Gestion des formulaires
 
-Les formulaires en React nécessitent une gestion spécifique de l’état des champs, car React ne manipule pas directement le DOM comme en HTML classique.
+En React, on gère les formulaires de deux manières : **contrôlée** (l'état React est la source de vérité) ou **non contrôlée** (le DOM est la source de vérité).
 
-### États contrôlés
+### Formulaire contrôlé
 
-L’approche recommandée est d’utiliser le state pour stocker et gérer les valeurs des champs du formulaire.
-La valeur des champs est stockée dans des variables d’état (via `useState`).
-
-:::note
-`event.preventDefault()` est utilisé pour éviter que le formulaire ne soumette la page.
-:::
+La valeur de chaque champ est stockée dans un `useState` et synchronisée avec le champ via `value` + `onChange`.
 
 ```jsx
 import { useState } from "react";
@@ -213,8 +313,8 @@ import { useState } from "react";
 function Formulaire() {
   const [nom, setNom] = useState("");
 
-  function handleSubmit(event) {
-    event.preventDefault();
+  function handleSubmit(e) {
+    e.preventDefault();
     alert(`Nom soumis : ${nom}`);
   }
 
@@ -222,77 +322,81 @@ function Formulaire() {
     <form onSubmit={handleSubmit}>
       <label>
         Nom :
-        <input type="text" value={nom} onChange={(e) => setNom(e.target.value)} />
+        <input
+          type="text"
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+        />
       </label>
-      <button type="submit">Envoyer</button>
+      <button type="submit" disabled={nom.trim() === ""}>
+        Envoyer
+      </button>
     </form>
   );
 }
 ```
 
-### Gestion de plusieurs champs
+Avantages : validation en direct, boutons activés/désactivés dynamiquement, mise en forme conditionnelle.
 
-On peut gérer plusieurs champs en utilisant un objet dans le `useState` :
+### Plusieurs champs dans un seul état
 
 ```jsx
 function Formulaire() {
-  const [formData, setFormData] = useState({ nom: "", email: "" });
+  const [formData, setFormData] = useState({ nom: "", courriel: "" });
 
-  function handleChange(event) {
-    setFormData({ ...formData, [event.target.name]: event.target.value });
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(event) {
-    event.preventDefault();
+  function handleSubmit(e) {
+    e.preventDefault();
     console.log("Données soumises :", formData);
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <label>
-        Nom :
-        <input type="text" name="nom" value={formData.nom} onChange={handleChange} />
-      </label>
-      <label>
-        Email :
-        <input type="email" name="email" value={formData.email} onChange={handleChange} />
-      </label>
+      <input name="nom"      value={formData.nom}      onChange={handleChange} />
+      <input name="courriel" value={formData.courriel} onChange={handleChange} type="email" />
       <button type="submit">Envoyer</button>
     </form>
   );
 }
 ```
 
-### État non contrôlé
+:::note[Propriété calculée]
+L'écriture `{ [name]: value }` est une **propriété calculée** en JavaScript : les crochets indiquent que la clé de l'objet est la **valeur** de la variable `name`, pas la chaîne `"name"`. Si `name` vaut `"courriel"`, on obtient `{ courriel: value }`.
 
-Dans ce cas de figure, la valeur du champ est gérée directement par le DOM. On utilise une référence (`useRef`) pour récupérer la valeur seulement au moment de la soumission.
+Cette syntaxe permet d'utiliser un seul gestionnaire `handleChange` pour tous les champs.
+:::
+
+### Formulaire non contrôlé
+
+Les valeurs restent dans le DOM ; on les lit au moment de la soumission via `useRef`.
 
 ```jsx
 import { useRef } from "react";
 
 function FormulaireNonControle() {
   const nomRef = useRef(null);
-  const emailRef = useRef(null);
 
-  function handleSubmit(event) {
-    event.preventDefault();
+  function handleSubmit(e) {
+    e.preventDefault();
     console.log("Nom :", nomRef.current.value);
-    console.log("Email :", emailRef.current.value);
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <input type="text" name="nom" ref={nomRef} />
-      <input type="email" name="email" ref={emailRef} />
+      <input type="text" ref={nomRef} />
       <button type="submit">Envoyer</button>
     </form>
   );
 }
 ```
 
-#### Exemple: Récupérer les valeurs du formulaire avec useRef et name
+### Variante pratique : `FormData`
 
-Au lieu d’attacher un `ref` à chaque champ, on **met un `ref` sur le formulaire** et on utilise `FormData` pour récupérer les valeurs.
+Plutôt que d'attacher un `ref` à chaque champ, on met un `ref` sur le formulaire et on lit toutes les valeurs d'un coup :
 
 ```jsx
 import { useRef } from "react";
@@ -300,22 +404,66 @@ import { useRef } from "react";
 function FormulaireNonControle() {
   const formRef = useRef(null);
 
-  function handleSubmit(event) {
-    event.preventDefault();
-
-    // Utilisation de FormData pour récupérer les valeurs
-    const formData = new FormData(formRef.current);
-    const values = Object.fromEntries(formData.entries());
-
-    console.log(values); // { nom: "John Doe", email: "john@example.com" }
+  function handleSubmit(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(formRef.current));
+    console.log(data); // { nom: "...", courriel: "..." }
   }
 
   return (
     <form ref={formRef} onSubmit={handleSubmit}>
-      <input type="text" name="nom" placeholder="Nom" />
-      <input type="email" name="email" placeholder="Email" />
+      <input name="nom" />
+      <input name="courriel" type="email" />
       <button type="submit">Envoyer</button>
     </form>
   );
 }
 ```
+
+### Contrôlé ou non contrôlé ?
+
+| Utilisez **contrôlé** si… | Utilisez **non contrôlé** si… |
+|---|---|
+| Vous devez valider en direct | Vous lisez seulement à la soumission |
+| Le contenu d'un champ dépend d'un autre | Le formulaire est simple et isolé |
+| Vous voulez activer/désactiver le bouton selon la saisie | Vous intégrez une bibliothèque tierce qui gère le DOM |
+
+**En doute, partez sur contrôlé** — c'est l'approche recommandée par React et de loin la plus fréquente.
+
+## Erreurs communes à éviter
+
+| Erreur | Symptôme | Correction |
+|---|---|---|
+| Oublier `e.preventDefault()` dans `onSubmit` | La page recharge à chaque soumission | Appeler `e.preventDefault()` en première ligne du handler |
+| Oublier le tableau de dépendances | Boucle de rendus, avertissements | Ajouter `[]` ou les dépendances réelles |
+| Dépendances manquantes dans `useEffect` | Avertissement ESLint, comportement incohérent | Inclure toutes les variables du scope utilisées dans l'effet |
+| Modifier un état directement (`formData.nom = "..."`) | L'UI ne se met pas à jour | Utiliser `setFormData(prev => ({ ...prev, nom: "..." }))` |
+| Appeler un hook dans une condition | Erreur React ou bogues subtils | Hooks toujours au niveau supérieur du composant |
+| Oublier `value=` sur un champ contrôlé | Avertissement « controlled/uncontrolled » | Fournir `value` **et** `onChange` |
+| Nommer un hook personnalisé sans préfixe `use` | ESLint ne vérifie plus les règles des hooks | Renommer en `useXxx` |
+
+## Récapitulatif
+
+1. Un **hook** donne accès à l'état, aux effets, aux références et au contexte depuis un composant fonctionnel.
+2. **`useState`** pour les valeurs qui influencent l'affichage ; **`useRef`** pour les valeurs qui n'y participent pas (ou pour accéder au DOM).
+3. **`useEffect`** pour les effets de bord ; le **tableau de dépendances** contrôle précisément quand il s'exécute.
+4. Les **évènements** s'attachent en camelCase (`onClick`, `onChange`…) et reçoivent un objet `event`.
+5. Un **hook personnalisé** encapsule de la logique réutilisable ; son nom commence par `use`.
+6. Les **formulaires contrôlés** (état React + `value`/`onChange`) sont l'approche par défaut.
+
+## Exercices
+
+1. **Titre dynamique.** Dans un composant `PageTitre`, utilisez `useEffect` pour mettre à jour `document.title` selon une prop `titre`. Nettoyez proprement au démontage.
+2. **Barre de recherche.** Créez un composant `BarreRecherche` contrôlé qui affiche la saisie en temps réel et propose un bouton « Effacer » pour vider le champ. Servira directement au projet 1.
+3. **Hook `useLocalStorage`.** Écrivez un hook personnalisé qui se comporte comme `useState` mais persiste la valeur dans `localStorage`. Signature : `const [valeur, setValeur] = useLocalStorage("cle", valeurInitiale);`.
+4. **Modale d'abonnement.** Créez un composant `ModaleAbonnement` qui s'affiche au clic sur un lien « M'abonner », se ferme au clic en dehors (`useClickOutside`) ou à la touche `Escape`. Servira directement au projet 3.
+5. **Formulaire de filtre.** Créez un formulaire contrôlé avec trois champs (arrondissement, sujet, date) et un bouton « Appliquer les filtres » désactivé tant qu'aucun champ n'est rempli. Transmet les valeurs à un parent via une prop `onFiltrer`.
+
+## Ressources
+
+- [Guide React — Échapper aux limites du rendu avec les effets](https://fr.react.dev/learn/synchronizing-with-effects)
+- [Guide React — Réutiliser la logique avec des hooks personnalisés](https://fr.react.dev/learn/reusing-logic-with-custom-hooks)
+- [Référence React — Les règles des hooks](https://fr.react.dev/reference/rules/rules-of-hooks)
+- [Référence React — Tous les hooks intégrés](https://fr.react.dev/reference/react/hooks)
+- [MDN — Objet `FormData`](https://developer.mozilla.org/fr/docs/Web/API/FormData)
+- [MDN — Évènements DOM](https://developer.mozilla.org/fr/docs/Web/Events)

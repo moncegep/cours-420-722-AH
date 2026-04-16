@@ -1,0 +1,129 @@
+---
+import Icon from './Icon.astro';
+
+interface Props {
+  courseCode?: string;
+  courseTitle?: string;
+  program?: string;
+  institution?: string;
+  institutionUrl?: string;
+  author?: string;
+  contributors?: string[];
+  year?: number;
+}
+
+const {
+  courseCode = "420-702-AH",
+  courseTitle = "Fonctionnement et utilisation d'un système d'exploitation",
+  institution = "Collège Ahuntsic",
+  institutionUrl = 'https://www.collegeahuntsic.qc.ca',
+  author = '', // Auteur principal
+  contributors = [], // Liste de contributeurs
+  year = new Date().getFullYear(),
+} = Astro.props;
+---
+
+<footer class="course-footer">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <p class="footer-heading">
+        <Icon name="book-open" size={16} />
+        {courseCode}
+      </p>
+      <p class="footer-text">
+        {courseTitle}
+      </p>
+    </div>
+
+    <div class="footer-col">
+      <p class="footer-heading">Enseignement</p>
+      <p class="footer-text">
+        Enseigné au <a href={institutionUrl} target="_blank" rel="noopener">{institution}</a>
+        <br />
+        <>Auteur : {author}</>
+        {contributors.length > 0 && (
+          <>
+            <br />
+            <>Contributeurs : {contributors.join(', ')}</>
+          </>
+        )}
+      </p>
+    </div>
+
+    <div class="footer-col">
+      <p class="footer-heading">
+        <Icon name="scale" size={16} />
+        Licence
+      </p>
+      <p class="footer-text">
+        Sauf indication contraire, le contenu de ce site est sous licence
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener">
+          CC BY-NC-SA 4.0
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <p class="footer-copyright">
+    © {year} Ceduni · Tous droits réservés
+  </p>
+</footer>
+
+<style>
+  .course-footer {
+    margin-top: 3rem;
+    border-top: 1px solid rgba(128, 128, 128, 0.25);
+    padding-top: 2rem;
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .footer-col {
+    margin-top: 0;
+  }
+
+  .footer-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    /*-------------------------*/
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .footer-text {
+    opacity: 0.7;
+    margin-top: 0;
+    line-height: 1.5;
+    font-size: 0.88rem;
+  }
+
+  .footer-text a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .license-badge {
+    margin-top: 0.4rem;
+    opacity: 0.85;
+    transition: opacity 0.2s;
+  }
+
+  .license-badge:hover {
+    opacity: 1;
+  }
+
+  .footer-copyright {
+    text-align: center;
+    opacity: 0.4;
+    font-size: 0.8rem;
+    margin-top: 2rem;
+  }
+</style>

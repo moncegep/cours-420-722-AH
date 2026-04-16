@@ -10,140 +10,242 @@ import screenshot_avis from "/src/assets/images/visuel_app_avis_alerte.png";
     }}
     hasSidebar={false}
     headings={[
-        { text: "Mandat du projet", slug: "work", depth: 2 },
-        { text: "Spécifications", slug: "spec", depth: 2 },
+        { text: "Contexte et objectifs", slug: "contexte", depth: 2 },
+        { text: "Mandat", slug: "mandat", depth: 2 },
+        { text: "Pages et fonctionnalités", slug: "specs-fonctionnelles", depth: 2 },
+        { text: "Contraintes techniques", slug: "specs-techniques", depth: 2 },
+        { text: "Modèle de données", slug: "donnees", depth: 2 },
+        { text: "Remise", slug: "remise", depth: 2 },
         { text: "Évaluation", slug: "evaluation", depth: 2 },
+        { text: "Ressources", slug: "ressources", depth: 2 },
     ]}
 >
+    <h2 id="contexte">Contexte et objectifs</h2>
     <p>
-        La section <a href="https://montreal.ca/avis-et-alertes"
-            ><em>Avis et alertes</em></a
-        > présente les avis et alertes qui ont été émis par l'outil de gestion des
-        alertes de la Ville. Les avis et alertes communiquent les renseignements
-        importants à la population en cas d'urgence et en situations pouvant avoir
-        un impact sur la vie quotidienne (ex: avis d'ébullition d'eau, travaux, fermeture
-        de piscine, etc.).
+        La section <a href="https://montreal.ca/avis-et-alertes"><em>Avis et alertes</em></a>
+        présente les avis émis par la Ville de Montréal. Ces communications
+        signalent des renseignements importants à la population (avis d'ébullition
+        d'eau, travaux, fermeture de piscine, etc.) et peuvent avoir un impact
+        direct sur la vie quotidienne.
     </p>
     <p>
-        L'objectif de ce projet est de rendre l'information plus accessible et
-        plus facile à consulter pour les citoyens de Montréal. Nous voulons que
-        les informations soit accessibles en tout temps, même sans connexion
-        internet et que les citoyens reçoivent des notifications d'alertes (sur
-        leurs appareils) dès qu'elles sont émises, sans avoir à consulter
-        directement l'application. <br />
-        Pour ce faire, nous allons transformer le site web en application web progressive
-        (PWA). Le développement se fera en 3 phases, avec la première se concentrant
-        sur la création de l'interface interactive.
+        L'objectif global de ce projet (réparti sur 3 phases) est de transformer
+        ce site en <strong>application web progressive (PWA)</strong>,
+        consultable hors connexion et capable de notifier les citoyens lors
+        d'une nouvelle alerte.
+    </p>
+    <ul>
+        <li><strong>Phase 1 (ce projet) :</strong> construction de l'interface interactive en React avec données fictives.</li>
+        <li><strong>Phase 2 :</strong> intégration de l'API de la Ville, enrichissement des filtres, transformation en PWA (installable et hors-ligne).</li>
+        <li><strong>Phase 3 :</strong> ajout d'un backend Express, de notifications push et optimisation.</li>
+    </ul>
+    <p>
+        Ce découpage influence vos décisions dès la phase 1 :
+        <strong>découplez la couche de données de la couche de présentation</strong>.
+        Idéalement, vos composants ne connaissent pas la source des données — ils
+        consomment simplement un module de service, qui sera remplacé par un
+        appel à une vraie API au projet 2.
     </p>
 
-    <h2 id="work">Mandat du projet</h2>
+    <h4>Compétences visées</h4>
+    <ul>
+        <li>Décomposer une interface en une arborescence de composants React.</li>
+        <li>Gérer l'état local et le flux de données entre composants.</li>
+        <li>Mettre en place du routage côté client.</li>
+        <li>Implémenter une recherche et des filtres réactifs.</li>
+        <li>Adapter une interface à des écrans de tailles variées.</li>
+        <li>Organiser un projet frontend et le livrer via Git/GitHub.</li>
+    </ul>
+
+    <h2 id="mandat">Mandat</h2>
     <Image
         src={screenshot_avis}
         alt="Capture du site d'avis et alertes de la ville de Montréal"
         style={{ width: "100%", maxWidth: "900px", marginTop: "12px" }}
     />
     <p>
-        Pour la première phase du projet, vous devez créer une application avec
-        React reproduisant le plus fidèlement possible la structure de la page
-        (voir image plus haut). L'application aura des fonctionnalités de
-        recherche et filtre et présentera deux pages principales: la page
-        d'accueil et la page de détail.
+        Vous devez créer une application React reproduisant fidèlement la
+        structure de la page ci-dessus. L'application comportera deux pages
+        principales :
     </p>
     <ol>
-        <li>
-            Page d'accueil: Présente la liste des alertes et fournis des
-            capacités de recherche.
-        </li>
-        <li>Page de détail: Présente le détail d'une alerte spécifique.</li>
+        <li><strong>Page d'accueil :</strong> liste des alertes avec recherche et filtres.</li>
+        <li><strong>Page de détail :</strong> contenu complet d'une alerte sélectionnée.</li>
     </ol>
 
-    <h2 id="spec">Spécifications</h2>
+    <h2 id="specs-fonctionnelles">Pages et fonctionnalités</h2>
+
+    <h4>En-tête (partagé)</h4>
+    <ul>
+        <li>Logo de la Ville et lien <em>Mon Compte</em> (inactif — un clic peut afficher un simple message).</li>
+        <li>Présent sur les deux pages principales.</li>
+        <li>L'en-tête <strong>n'a pas besoin d'être collante</strong> (pas de <code>position: sticky</code> requis).</li>
+    </ul>
+
+    <h4>Page d'accueil</h4>
     <ul>
         <li>
-            <b>En-tête:</b> L'entête inclut le logo de la Ville et un lien de connexion <em>Mon Compte</em> (inactif).
+            <strong>Recherche :</strong> filtre la liste en fonction du titre de l'alerte.
             <ul style="margin: 0;">
-                <li>Les deux pages principales partagent le même en-tête</li>
-                <li>L'en tête n'a pas besoin d'être collante (suivre le défilement de la page)</li>
+                <li>Correspondance <strong>partielle</strong> (sous-chaîne), <strong>insensible à la casse et aux accents</strong>.</li>
+                <li>Mise à jour en temps réel pendant la saisie.</li>
             </ul>
         </li>
         <li>
-            <b>Recherche:</b> La recherche se fait sur le nom (titre) des alertes et avis.
-        </li>
-        <li>
-            <b>Filtre:</b> Pour chaque filtre (arrondissement, date, sujet), seule une
-            valeur peut être sélectionnée à la fois.
+            <strong>Filtres (arrondissement, date, sujet) :</strong>
             <ul style="margin: 0;">
-                <li>Filtre de date: Utilisez deux champs texte pour représenter la période.</li>
-                <li>Plusieurs filtres peuvent être actifs en même temps</li>
+                <li>Une seule valeur sélectionnée <em>par filtre</em>.</li>
+                <li>Plusieurs filtres peuvent être actifs simultanément (combinaison « ET »).</li>
+                <li>Filtre de date : deux champs <code>&lt;input type="date"&gt;</code> (date de début et date de fin, tous deux optionnels).</li>
+                <li>Un moyen de réinitialiser les filtres doit être accessible.</li>
             </ul>
         </li>
         <li>
-            <b>S'abonner aux alertes:</b> Le lien <em>M'abonner</em> affiche un message
-            informant que la fonctionnalité n'est pas encore disponible.
-        </li>
-        <li>
-            <b>Liste des alertes:</b> La pagination est optionnelle. Vous pouvez:
+            <strong>Liste des alertes :</strong> pagination optionnelle. Choisissez l'une des approches :
             <ul style="margin: 0;">
-                <li>Afficher toutes des alertes sur un même page <b>OU</b></li>
-                <li>Ajouter un bouton en fin de liste pour charger plus d'alertes</li>
+                <li>Afficher toutes les alertes sur une seule page, <strong>OU</strong></li>
+                <li>Un bouton « Charger plus » en fin de liste.</li>
             </ul>
         </li>
         <li>
-            <b>Page de détail:</b> La page de détail affiche le contenu complet de l'alerte sélectionnée.
+            <strong>S'abonner aux alertes :</strong> le lien <em>M'abonner</em> affiche un message indiquant que la fonctionnalité n'est pas encore disponible.
         </li>
-        <li><b>Responsive design:</b>  L'interface doit être adaptée aux petits écrans (mobile)</li>
+    </ul>
+
+    <h4>Page de détail</h4>
+    <ul>
+        <li>Affiche le contenu complet de l'alerte sélectionnée (titre, arrondissement, date, sujet, description longue).</li>
         <li>
-            <b>Données:</b> Pour ce projet, nous n'utiliserons pas de données réelles (API). 
-            Vous pouvez utiliser des données fictives ou des données simulées.
+            Doit être accessible via une <strong>URL dédiée</strong> (p. ex. <code>/alertes/:id</code>)
+            pour qu'on puisse y accéder directement, partager le lien ou rafraîchir la page.
         </li>
+        <li>Un lien/bouton permet de revenir à la page d'accueil.</li>
+    </ul>
+
+    <h4>Responsive design</h4>
+    <ul>
+        <li>L'interface doit être lisible et fonctionnelle sur mobile (largeur minimale visée : <strong>360 px</strong>).</li>
+        <li>Au moins un point de rupture (<em>breakpoint</em>) distinct entre la version mobile et la version bureau.</li>
+    </ul>
+
+    <h4>États de chargement <em>(optionnel, recommandé)</em></h4>
+    <p>
+        Même avec des données fictives, vous pouvez simuler un chargement
+        asynchrone (voir <a href="#specs-techniques">découplage des données</a>).
+        Si vous le faites, affichez un indicateur visuel pendant le chargement.
+        Cette pratique vous facilitera grandement la transition vers la vraie API
+        au projet 2.
+    </p>
+
+    <h2 id="specs-techniques">Contraintes techniques</h2>
+    <ul>
+        <li><strong>Cadriciel :</strong> React 18+ initialisé avec <strong>Vite</strong>.</li>
+        <li><strong>Routage :</strong> <code>react-router-dom</code> (v6+).</li>
+        <li><strong>Langage :</strong> JavaScript ou TypeScript (au choix).</li>
+        <li><strong>CSS :</strong> libre (CSS modules, CSS vanilla, Tailwind, styled-components...). Évitez de tout écrire dans un seul fichier global.</li>
+        <li><strong>État :</strong> <code>useState</code> / <code>useContext</code> natifs suffisent ; aucune bibliothèque externe (Redux, Zustand) n'est requise ni attendue.</li>
+        <li><strong>Organisation :</strong> un composant = un fichier. Séparez les composants réutilisables (UI) des composants de page.</li>
+        <li>
+            <strong>Découplage des données :</strong> les données fictives doivent être
+            isolées dans un module dédié (p. ex. <code>src/services/alertes.js</code>)
+            exposant des <strong>fonctions asynchrones</strong>. 
+            <br>
+            <strong>Exemple :</strong>
+<pre><code>{`// src/services/alertes.js
+const MOCK = [/* ... vos alertes ... */];
+
+export async function getAlertes() {
+  await new Promise(r => setTimeout(r, 200)); // simule la latence réseau
+  return MOCK;
+}
+
+export async function getAlerteById(id) {
+  const alertes = await getAlertes();
+  return alertes.find(a => a.id === id);
+}`}</code></pre>
+            Vos composants consomment ces fonctions via <code>useEffect</code> + <code>useState</code>,
+            exactement comme ils le feraient avec une vraie API au projet 2.
+        </li>
+    </ul>
+
+    <h2 id="donnees">Modèle de données</h2>
+    <p>
+        Fournissez un jeu d'au moins <strong>20 alertes fictives</strong>
+        réparties sur <strong>au moins 5 arrondissements</strong> et
+        <strong>3 sujets</strong> différents. Chaque alerte doit respecter au minimum
+        le schéma suivant :
+    </p>
+    <pre><code>{`{
+  id: string,              // identifiant unique
+  titre: string,
+  arrondissement: string,  // ex: "Ahuntsic-Cartierville"
+  sujet: string,           // ex: "Eau", "Travaux", "Loisirs"
+  dateEmission: string,    // format ISO: "2026-04-15"
+  resume: string,          // 1-2 phrases, affiché dans la liste
+  description: string      // contenu complet, affiché en page de détail
+}`}</code></pre>
+    <p>
+        Vous pouvez ajouter des champs supplémentaires si cela vous est utile
+        (statut, date d'expiration, etc.).
+    </p>
+
+    <h2 id="remise">Remise</h2>
+    <ul>
+        <li>Dépôt GitHub public (ou privé avec enseignant collaborateur).</li>
+        <li>
+            <code>README.md</code> incluant :
+            <ul style="margin: 0;">
+                <li>Nom(s) de l'étudiant·e(s).</li>
+                <li>Instructions d'installation et de démarrage.</li>
+                <li>Choix techniques principaux et justification sommaire.</li>
+            </ul>
+        </li>
+        <li>Lien du dépôt remis sur Léa avant la <strong>date limite : dimanche 6 avril 23 h 59</strong>.</li>
+        <li>Pénalité de <strong>10 % par jour de retard jusqu'au 8 avril</strong>. Au-delà, note de 0.</li>
+        <li><strong>Évaluation orale en classe le mardi 8 avril</strong> (≈ 10 min par étudiant·e) : présentation de l'application et questions sur le code et les décisions d'architecture.</li>
     </ul>
 
     <h2 id="evaluation">Évaluation</h2>
-    <p>L'évaluation de ce projet se fera en fonction des critères suivants :</p>
-
-    <ul>
-        <li>Structure de l'application.</li>
-        <li>Décomposition en composant.</li>
-        <li>Respect de la spécification.</li>
-        <li>Fidélité de l'interface utilisateur.</li>
-        <li>Adaptation de l'interface aux petits écrans.</li>
-        <li>Qualité du code et respect des bonnes pratiques.</li>
-        <li>Maitrise du code et de l'application.</li>
-    </ul>
-
     <p>
-        Ce projet compte pour <strong>30% de la note finale</strong>. Vous devez
-        remettre votre projet sur GitHub avant la date limite de remise: <strong
-            >dimanche 6 avril.</strong
-        >
-        Des <strong>pénalités de 10% par jour de retard </strong> seront appliquées
-        <strong>jusqu'au 8 avril.</strong>
-        Au-delà de cette date, une note de 0 sera attribuée au devoir. <br />
-        Une évaluation de votre application et de votre maîtrise aura lieu en classe
-        le <strong>mardi 8 avril.</strong>
+        Ce projet compte pour <strong>30 % de la note finale</strong>, réparti comme suit :
     </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Critère</th>
+                <th style="text-align: right;">Pondération</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Décomposition en composants (cohérence, réutilisabilité, responsabilités)</td>
+                <td style="text-align: right;">20 %</td>
+            </tr>
+            <tr>
+                <td>Respect des spécifications fonctionnelles (pages, recherche, filtres, routage)</td>
+                <td style="text-align: right;">25 %</td>
+            </tr>
+            <tr>
+                <td>Fidélité de l'interface utilisateur à la maquette</td>
+                <td style="text-align: right;">15 %</td>
+            </tr>
+            <tr>
+                <td>Adaptation aux petits écrans (responsive)</td>
+                <td style="text-align: right;">10 %</td>
+            </tr>
+            <tr>
+                <td>Qualité du code et respect des bonnes pratiques (nommage, structure, absence de code mort)</td>
+                <td style="text-align: right;">15 %</td>
+            </tr>
+            <tr>
+                <td>Maîtrise du code (évaluation orale)</td>
+                <td style="text-align: right;">15 %</td>
+            </tr>
+        </tbody>
+    </table>
 
-    <!-- <h2>Mandat du projet</h2>
-  
-  <h4>
-    Création de l’interface interactive avec React :
-  </h4>
-  
-  <ul>
-    <li>Intégrer React dans la structure existante du site.</li>
-    <li>Développer les composants interactifs pour afficher les alertes (ex : cartes d'alertes, barre de recherche, etc.).</li>
-  </ul>
-  
-  <h4>Adaptation de l'interface aux petits écrans</h4>
-  
-  <ul>
-    <li>Adapter l’interface pour qu'elle soit lisible et fonctionnelle sur des smartphones et tablettes.</li>
-    <li>Utiliser des menus hamburgers, icônes simples et boutons adaptés aux écrans tactiles.</li> 
-  </ul>
-
-  <h4>Implémentation du filtre fonctionnel</h4>
-  <ul>
-    <li>Créer un filtre simple permettant de trier les alertes par date ou type d'alerte.</li>
-    <li>Assurer une mise à jour dynamique des alertes lorsqu’un filtre est appliqué.</li>
-  </ul> -->
+    <h2 id="ressources">Ressources</h2>
+    <ul>
+        <li><a href="https://montreal.ca/avis-et-alertes">Page source — Avis et alertes de la Ville de Montréal</a></li>
+    </ul>
 </StarlightPage>

@@ -1,0 +1,521 @@
+---
+title: Cache avancé, hors-ligne et notifications push
+description: Gestion avancée du cache, stockage structuré avec IndexedDB et flux complet des notifications push
+lastUpdated: 2026-04-16
+---
+
+## Contexte
+
+Cette semaine fait le pont entre la PWA de base construite au projet 2 et les fonctionnalités avancées exigées par le projet 3. Deux grands blocs :
+
+1. **Aller au-delà des stratégies de cache de base** : fallback hors-ligne, App Shell, stockage de données structurées avec IndexedDB, détection de l'état du réseau.
+2. **Notifications push** : flux complet, de la demande de permission jusqu'au clic de l'utilisateur sur la notification.
+
+Le code serveur (Express, `web-push`, base de données) est traité en profondeur dans le cadre du projet 3.
+
+## Aller plus loin avec le cache
+
+### App Shell
+
+L'**App Shell** est un pattern courant pour les PWAs : on pré-cache le **squelette** de l'application (HTML de base, CSS, JS, logo) et on laisse les données se charger dynamiquement. Bénéfice : la coquille s'affiche instantanément, même hors-ligne ; seules les données attendent le réseau.
+
+```
+┌─────────────────────────────────────┐
+│  App Shell (pré-caché)              │  ← toujours dispo, instantané
+│  ┌─────────────────────────────┐    │
+│  │  Entête, navigation, pied   │    │
+│  └─────────────────────────────┘    │
+│  ┌─────────────────────────────┐    │
+│  │  ← Contenu dynamique →       │    │  ← chargé depuis l'API ou le cache
+│  │     (alertes, détail, …)     │    │
+│  └─────────────────────────────┘    │
+└─────────────────────────────────────┘
+```
+
+Concrètement, dans votre SW : `install` pré-cache les assets du shell, `fetch` utilise **Cache First** pour ceux-ci et **Stale-While-Revalidate** pour les données.
+
+### Fallback hors-ligne
+
+Que se passe-t-il si l'utilisateur clique sur un lien vers une page qui **n'a jamais été visitée** et qu'il est hors-ligne ? Sans intervention, le navigateur affiche son message d'erreur générique (« Pas d'internet »). Solution : une **page de repli** pré-cachée que le SW sert en cas d'échec.
+
+```js title="sw.js" "offline.html"
+const CACHE = 'avis-mtl-v1';
+const FALLBACK = '/offline.html';
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(['/', '/index.html', FALLBACK]))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  // On ne cible que les requêtes de navigation (URL de page)
+  if (event.request.mode !== 'navigate') return;
+
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(FALLBACK))
+  );
+});
+```
+
+Votre `offline.html` peut être une page minimale, stylée avec votre charte, qui invite l'utilisateur à revenir quand le réseau sera disponible.
+
+### Network-with-timeout
+
+Sur une connexion très lente, `fetch` peut mettre 20 secondes à répondre. Un pattern utile : **tenter le réseau avec un délai maximum**, puis basculer sur le cache.
+
+```js
+function networkWithTimeout(request, timeout = 3000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), timeout);
+    fetch(request).then(
+      response => { clearTimeout(timer); resolve(response); },
+      err => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    networkWithTimeout(event.request, 3000)
+      .catch(() => caches.match(event.request))
+  );
+});
+```
+
+### Navigation preload
+
+Quand le SW est inactif, le navigateur doit attendre qu'il démarre avant de traiter une requête de navigation — délai de 50 à 500 ms inutile. La **navigation preload** permet au navigateur de lancer la requête en parallèle du démarrage du SW.
+
+```js
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    if (self.registration.navigationPreload) {
+      await self.registration.navigationPreload.enable();
+    }
+  })());
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      const preloadResponse = await event.preloadResponse;
+      return preloadResponse ?? fetch(event.request);
+    })());
+  }
+});
+```
+
+`vite-plugin-pwa` active ça automatiquement.
+
+## Stocker des données structurées
+
+Le Cache API stocke des **réponses HTTP** ; c'est parfait pour les ressources réseau mais inadapté pour de la logique métier (rechercher une alerte par `id`, filtrer, trier…). Pour ces besoins, on utilise un vrai stockage.
+
+### Cache API vs LocalStorage vs IndexedDB
+
+| API | Contenu | Capacité | API | Cas d'usage |
+|---|---|---|---|---|
+| **LocalStorage** | Strings | ~5 MB | Synchrone | Préférences simples, flags, token court |
+| **Cache API** | Réponses HTTP | ≥ 100 MB | Async (Promise) | Ressources statiques, réponses API brutes |
+| **IndexedDB** | Objets JavaScript structurés | ≥ 100 MB | Async (Promise) | Données utilisateur, files d'attente, recherche indexée |
+
+Règle simple : si vous avez besoin de **requêter par clé, filtrer ou indexer** des objets JavaScript, utilisez IndexedDB.
+
+### IndexedDB avec `idb`
+
+L'API native d'IndexedDB est pénible (événements, transactions verbeuses). La bibliothèque [`idb`](https://github.com/jakearchibald/idb) fournit une couche Promise concise :
+
+```sh
+npm install idb
+```
+
+```js title="src/services/alertes-db.js"
+import { openDB } from 'idb';
+
+const dbPromise = openDB('avis-mtl', 1, {
+  upgrade(db) {
+    const store = db.createObjectStore('alertes', { keyPath: 'id' });
+    store.createIndex('arrondissement', 'arrondissement');
+    store.createIndex('dateEmission', 'dateEmission');
+  }
+});
+
+export async function enregistrerAlertes(alertes) {
+  const db = await dbPromise;
+  const tx = db.transaction('alertes', 'readwrite');
+  await Promise.all(alertes.map(a => tx.store.put(a)));
+  await tx.done;
+}
+
+export async function lireAlertes() {
+  return (await dbPromise).getAll('alertes');
+}
+
+export async function lireAlerteParId(id) {
+  return (await dbPromise).get('alertes', id);
+}
+```
+
+:::tip[Pour le projet 3]
+IndexedDB est utile si vous voulez :
+
+- Préserver les alertes consultées pour les offrir hors-ligne même au premier lancement suivant.
+- Stocker les préférences de l'utilisateur (sujets/arrondissements pour le filtrage des notifications — bonus du projet 3).
+:::
+
+## Détecter l'état du réseau
+
+Le navigateur expose `navigator.onLine` (booléen) et deux événements (`online`, `offline`). Encapsulons ça dans un hook :
+
+```js title="src/hooks/useEstEnLigne.js"
+import { useState, useEffect } from 'react';
+
+export function useEstEnLigne() {
+  const [estEnLigne, setEstEnLigne] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const actualiser = () => setEstEnLigne(navigator.onLine);
+    window.addEventListener('online', actualiser);
+    window.addEventListener('offline', actualiser);
+    return () => {
+      window.removeEventListener('online', actualiser);
+      window.removeEventListener('offline', actualiser);
+    };
+  }, []);
+
+  return estEnLigne;
+}
+```
+
+Usage :
+
+```jsx
+function BanniereHorsLigne() {
+  const enLigne = useEstEnLigne();
+  if (enLigne) return null;
+  return (
+    <div className="banniere-hors-ligne">
+      ⚠️ Vous êtes hors-ligne — les données affichées peuvent être périmées.
+    </div>
+  );
+}
+```
+
+:::caution[Limites de `navigator.onLine`]
+Cette propriété indique seulement si le navigateur a **une connexion réseau active**, pas si internet fonctionne vraiment. Un wifi d'aéroport en portail captif, par exemple, sera vu comme « en ligne ». Pour une vérification robuste, faites un `fetch` périodique vers votre API et basez-vous sur la réussite du fetch.
+:::
+
+---
+
+## Les notifications push
+
+### Concept
+
+Une notification push permet à votre serveur d'envoyer un message à l'appareil d'un utilisateur **même quand l'application est fermée**. Le message transite par un **service de push** tiers (FCM pour Chrome, Mozilla Push Service pour Firefox, APNs pour Safari) qui réveille le Service Worker pour afficher la notification.
+
+Trois APIs web sont mobilisées :
+
+1. **Notifications API** — afficher une notification à l'utilisateur.
+2. **Push API** — recevoir des messages du serveur via le service de push.
+3. **Permissions API** — obtenir l'autorisation d'afficher des notifications.
+
+### Flux complet
+
+```
+  Client                     Serveur applicatif           Service de push
+  (navigateur)               (Express + web-push)          (FCM, Mozilla…)
+  ────────                   ──────────────────            ────────────────
+
+  1. Permission ──────────────────────────────────────────►
+  2. Subscribe ◄──────────────────────────────────────────►
+  3. Envoie la subscription ──►
+                              4. Stocke en BD
+                              ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                              5. Nouvel avis détecté
+                              6. POST /send-notification
+                                 avec subscription + payload
+                                 signé par clé VAPID ─────►
+  7. Réveil du SW         ◄── 8. Livraison              ◄──
+  9. SW affiche la notif
+  10. Clic utilisateur → ouverture de l'app
+```
+
+### Les clés VAPID
+
+VAPID (*Voluntary Application Server Identification*) authentifie votre serveur auprès du service de push. Sans ça, n'importe qui pourrait envoyer des notifications à vos utilisateurs.
+
+Vous générez **une paire de clés** :
+
+- La **clé publique** (partagée avec le client pour l'abonnement).
+- La **clé privée** (gardée sur le serveur pour signer les envois).
+
+Génération :
+
+```sh
+npx web-push generate-vapid-keys
+```
+
+Sortie :
+```
+=======================================
+Public Key:
+BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U
+
+Private Key:
+VCxVeMuqqQwzLwXkyrZZjgLtv9tzfKhiOCvwV8bA_MQ
+=======================================
+```
+
+:::caution[Ne commit JAMAIS la clé privée]
+La clé privée va dans `.env` côté serveur. Elle ne doit **jamais** être dans le dépôt Git, ni exposée au client. C'est un point de notation du projet 3.
+:::
+
+### Demander la permission
+
+Trois états possibles pour la permission :
+
+- **`default`** — l'utilisateur n'a pas encore répondu.
+- **`granted`** — autorisation accordée.
+- **`denied`** — autorisation refusée.
+
+```js
+async function demanderPermission() {
+  if (!('Notification' in window)) {
+    throw new Error('Navigateur sans support des notifications');
+  }
+  const permission = await Notification.requestPermission();
+  return permission === 'granted';
+}
+```
+
+:::danger[Règle d'or des permissions]
+**Ne demandez jamais `Notification.requestPermission()` au chargement de la page.** Les études montrent des taux de refus de plus de 80 % dans ce cas — et une permission refusée est quasi définitive (l'utilisateur doit aller dans les paramètres du navigateur pour la changer).
+
+La bonne pratique :
+
+1. **Expliquez d'abord** l'utilité dans l'interface (texte, modale, « À quoi servent les notifications ? »).
+2. **Attendez un clic explicite** de l'utilisateur sur un bouton type « Activer les notifications ».
+3. **Déclenchez `requestPermission()` dans le gestionnaire du clic**, pas en amont.
+
+C'est précisément le pattern exigé par la modale du projet 3.
+:::
+
+### S'abonner au service push
+
+Une fois la permission obtenue, on demande au `PushManager` du SW de créer un abonnement :
+
+```js title="src/services/push.js"
+export async function sAbonner(cleVapidPublique) {
+  const registration = await navigator.serviceWorker.ready;
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(cleVapidPublique)
+  });
+
+  // Envoyer la subscription au serveur pour qu'il puisse pousser
+  await fetch('/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription })
+  });
+
+  return subscription;
+}
+
+// Helper : la clé VAPID est base64 URL-safe, à convertir
+function urlBase64ToUint8Array(base64) {
+  const padding = '='.repeat((4 - base64.length % 4) % 4);
+  const base64Std = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64Std);
+  const buffer = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) buffer[i] = raw.charCodeAt(i);
+  return buffer;
+}
+```
+
+:::note[`userVisibleOnly: true`]
+Cette option signifie : « chaque push reçu **doit** produire une notification visible ». C'est **obligatoire** sur tous les navigateurs grand public pour empêcher les abus silencieux. Sans elle, l'abonnement échoue.
+:::
+
+### L'objet subscription
+
+C'est un objet JSON qui identifie de manière unique **cet appareil** auprès du service de push :
+
+```json
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/eIQ7k...",
+  "expirationTime": null,
+  "keys": {
+    "p256dh": "BNcRdreALRFXTkOOUHK_SvBQM...",
+    "auth": "tBHItJI5svbpez7KI4CCXg=="
+  }
+}
+```
+
+- **`endpoint`** : URL unique du service de push pour cet appareil. Votre serveur l'utilisera pour lui envoyer des notifications.
+- **`keys.p256dh`** et **`keys.auth`** : clés de chiffrement. Seul l'appareil abonné peut déchiffrer les messages.
+
+Votre serveur stocke cet objet en base (dans le modèle `Subscription` du projet 3) et s'en sert pour envoyer les notifications via `web-push`.
+
+### Recevoir et afficher (rappel)
+
+Côté SW, l'événement `push` (déjà vu en semaine 6) déclenche l'affichage :
+
+```js title="public/sw.js"
+self.addEventListener('push', event => {
+  const data = event.data?.json() ?? {};
+
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? 'Avis MTL', {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/badge-72.png',        // petite icône barre de statut Android
+      data: { url: data.url ?? '/' },      // info disponible au clic
+      actions: [                            // boutons d'action (Android uniquement)
+        { action: 'voir', title: "Voir l'avis" },
+        { action: 'ignorer', title: 'Ignorer' }
+      ]
+    })
+  );
+});
+```
+
+### Gérer le clic sur la notification
+
+Quand l'utilisateur clique, on veut :
+
+- Si l'app est déjà ouverte → focus cet onglet et naviguer vers la page cible.
+- Sinon → ouvrir une nouvelle fenêtre sur la page cible.
+
+```js
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const urlCible = event.notification.data?.url ?? '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(fenetres => {
+        for (const fenetre of fenetres) {
+          if (fenetre.url.endsWith(urlCible) && 'focus' in fenetre) {
+            return fenetre.focus();
+          }
+        }
+        return self.clients.openWindow(urlCible);
+      })
+  );
+});
+```
+
+### Vérifier l'état de l'abonnement
+
+Pour afficher le bon bouton dans votre modale (« S'abonner » ou « Se désabonner »), il faut savoir si l'appareil est déjà abonné :
+
+```js
+export async function estAbonne() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return false;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  return subscription !== null;
+}
+```
+
+### Se désabonner
+
+```js
+export async function seDesabonner() {
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+
+  // Prévenir le serveur pour qu'il supprime la subscription en BD
+  await fetch('/unsubscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: subscription.endpoint })
+  });
+
+  // Annuler localement
+  await subscription.unsubscribe();
+}
+```
+
+### Support iOS
+
+Les notifications push sur iOS sont disponibles depuis **iOS 16.4** (mars 2023), avec des conditions strictes :
+
+- La PWA doit être **installée** (ajoutée à l'écran d'accueil via Safari → Partager → Sur l'écran d'accueil).
+- Seule l'application installée peut recevoir des push. Le site ouvert dans Safari n'en recevra jamais.
+- L'utilisateur doit ouvrir l'app installée **au moins une fois** avant que l'abonnement soit possible.
+
+Prévoyez dans votre interface un message spécifique pour les utilisateurs iOS non installés :
+
+> « Pour recevoir les notifications sur iPhone ou iPad, ajoutez d'abord cette application à votre écran d'accueil (Partager → Sur l'écran d'accueil). »
+
+### Gestion des abonnements expirés (côté serveur)
+
+Une subscription peut devenir invalide : l'utilisateur désinstalle l'app, efface les données du navigateur, reste hors-ligne trop longtemps. Quand vous tentez un envoi avec `web-push`, vous obtenez un code HTTP :
+
+| Code | Signification | Action |
+|---|---|---|
+| `201` | Notification livrée | Rien |
+| `410 Gone` | Abonnement définitivement mort | **Supprimer de la BD** |
+| `404 Not Found` | Endpoint inconnu | **Supprimer de la BD** |
+| `429` | Trop d'envois | Ralentir |
+
+La suppression automatique des abonnements 410/404 est **un critère d'évaluation du projet 3**.
+
+## Erreurs communes à éviter
+
+| Erreur | Symptôme | Correction |
+|---|---|---|
+| Demander la permission au chargement | Taux de refus > 80 % | Déclencher après un clic explicite |
+| Oublier `userVisibleOnly: true` | L'abonnement échoue | Toujours l'inclure |
+| Clé VAPID privée côté client | Vulnérabilité de sécurité | Clé privée uniquement dans `.env` serveur |
+| Oublier `event.waitUntil()` dans le SW | La notif ne s'affiche pas | Envelopper toutes les promesses |
+| Stocker les alertes dans LocalStorage | Lent, limité en taille, bloquant | Utiliser IndexedDB |
+| Se fier à `navigator.onLine` pour savoir si l'API répond | Faux positifs sur les portails captifs | Faire un ping réel à l'API |
+| Ne pas supprimer les abonnements 410/404 | Base de données qui gonfle, envois silencieux | Filtrer automatiquement côté serveur |
+| Tester les push sur iOS Safari (non installé) | Rien ne marche, pas d'erreur claire | Tester uniquement sur PWA installée, iOS 16.4+ |
+
+## Récapitulatif
+
+1. **App Shell** : pré-cacher le squelette, charger le contenu dynamiquement.
+2. **Page de fallback** hors-ligne pour les navigations vers des URLs non cachées.
+3. **IndexedDB** (via `idb`) pour les données structurées ; Cache API pour les réponses HTTP.
+4. **`navigator.onLine`** permet de détecter le réseau, mais a ses limites.
+5. **Notifications push** : 3 APIs (Permissions, Push, Notifications), un service de push tiers, des clés VAPID.
+6. **UX des permissions** : jamais au chargement, toujours après un clic explicite.
+7. **`userVisibleOnly: true`** obligatoire à l'abonnement.
+8. **iOS 16.4+** : push possible uniquement sur PWA installée.
+9. **Abonnements 410/404** doivent être supprimés automatiquement côté serveur.
+
+## Exercices
+
+Ces exercices correspondent directement aux fonctionnalités à livrer au projet 3.
+
+1. **Page de repli hors-ligne.** Créez `public/offline.html` (page simple, stylée). Configurez votre SW pour la pré-cacher et la servir en fallback pour les navigations hors-ligne.
+2. **Hook `useEstEnLigne` + bannière.** Implémentez le hook et créez un composant `BanniereHorsLigne` qui s'affiche uniquement quand le réseau est absent.
+3. **IndexedDB pour les alertes.** Avec `idb`, créez un service qui stocke/lit les alertes. Modifiez votre appel API pour : (a) récupérer les alertes en ligne, (b) les stocker en IndexedDB, (c) en cas d'échec réseau, lire depuis IndexedDB.
+4. **Modale d'abonnement complète.** Implémentez la modale d'abonnement du projet 3 :
+   - Affichage conditionnel selon `estAbonne()`.
+   - Bouton « S'abonner » : explication → clic → `requestPermission()` → `sAbonner()` → POST au serveur.
+   - Bouton « Se désabonner » : `unsubscribe()` + POST au serveur.
+   - Gestion des cas : permission `denied`, pas de support `PushManager`, iOS non installé.
+   - Fermeture par `Escape` ou clic en dehors (hook `useClickOutside` de la semaine 3).
+5. **Clic sur notification.** Implémentez `notificationclick` qui focus une fenêtre déjà ouverte si l'URL correspond, sinon en ouvre une nouvelle.
+6. **Test complet bout-en-bout.** Avec Postman, envoyez un POST à `/send-notification` de votre serveur. Vérifiez que la notification apparaît sur votre téléphone, qu'un clic ouvre la bonne page, et que l'interface se met à jour si l'app est déjà ouverte.
+
+## Ressources
+
+- [MDN — Notifications API](https://developer.mozilla.org/fr/docs/Web/API/Notifications_API)
+- [MDN — Push API](https://developer.mozilla.org/fr/docs/Web/API/Push_API)
+- [MDN — IndexedDB](https://developer.mozilla.org/fr/docs/Web/API/IndexedDB_API)
+- [web.dev — Push notifications : flux complet](https://web.dev/articles/push-notifications-overview?hl=fr)
+- [web.dev — Bonnes pratiques UX pour les permissions](https://web.dev/articles/permission-ux?hl=fr)
+- [`idb` — Wrapper Promise pour IndexedDB](https://github.com/jakearchibald/idb)
+- [`web-push` — Bibliothèque serveur Node.js](https://github.com/web-push-libs/web-push)
+- [Apple — Notifications push dans les PWAs iOS](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/)

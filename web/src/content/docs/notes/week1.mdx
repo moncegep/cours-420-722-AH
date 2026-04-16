@@ -1,0 +1,398 @@
+---
+title: "Introduction aux PWA et au cadriciel"
+description: "Introduction aux applications web progressives (PWA), prise en main de React et Vite, et rappel des notions de développement web côté client."
+sidebar:
+  label: "S1 — Introduction"
+  order: 1
+lastUpdated: 2025-03-21
+---
+
+import { Tabs, TabItem, Aside, Steps, Card, CardGrid } from '@astrojs/starlight/components';
+
+
+## Les applications web progressives (PWA)
+
+Imaginez qu'un commerce local — disons une microbrasserie de Sherbrooke — souhaite offrir à ses clients une application pour consulter le menu, passer des commandes et recevoir des notifications sur les nouveaux produits. Deux options s'offrent à elle :
+
+1. **Développer une application native** pour iOS *et* Android — coûteux, deux bases de code à maintenir, publication dans les magasins d'applications.
+2. **Développer une PWA** — une seule base de code web, installable directement depuis le navigateur, fonctionnelle hors ligne.
+
+Les **applications web progressives** (PWA) sont des applications web qui offrent une expérience utilisateur proche de celle des applications natives, en utilisant les technologies web standards (HTML, CSS, JavaScript).
+
+### Avantages
+
+<CardGrid>
+  <Card title="Installation directe" icon="add-document">
+    L'utilisateur ajoute la PWA à son écran d'accueil directement depuis le navigateur — aucun magasin d'applications requis.
+  </Card>
+  <Card title="Fonctionnement hors ligne" icon="warning">
+    Grâce aux Service Workers, la PWA peut fonctionner sans connexion Internet.
+  </Card>
+  <Card title="Notifications push" icon="approve-check-circle">
+    Les développeurs peuvent maintenir l'engagement des utilisateurs même lorsque l'application est fermée.
+  </Card>
+  <Card title="Multiplateforme" icon="open-book">
+    Une seule version fonctionne sur smartphone, tablette et ordinateur — réduction des coûts de développement.
+  </Card>
+</CardGrid>
+
+Un avantage supplémentaire : les **mises à jour automatiques**. Contrairement aux applications natives, où l'utilisateur doit manuellement déclencher la mise à jour via un magasin, les PWAs se mettent à jour en arrière-plan. L'utilisateur bénéficie toujours de la version la plus récente.
+
+### Limitations
+
+Malgré leurs avantages, les PWAs présentent certaines limitations à connaître :
+
+- **Accès limité aux fonctionnalités natives** : Bluetooth, capteurs de proximité, intégration profonde avec le système d'exploitation — certaines fonctionnalités restent hors de portée.
+- **Support inégal sur iOS** : Les notifications push, l'accès complet à la caméra et l'ajout à l'écran d'accueil sont plus limités ou moins intuitifs sur iOS que sur Android.
+- **Absence des magasins d'applications** : Les PWAs ne sont pas référencées dans le Google Play Store ou l'App Store, ce qui peut réduire leur visibilité.
+
+<Aside type="tip" title="Quand choisir une PWA ?">
+  Une PWA est un excellent choix lorsque l'application n'a pas besoin d'un accès poussé au matériel de l'appareil, que le budget est limité et qu'on souhaite une seule base de code pour toutes les plateformes. C'est le cas pour beaucoup d'applications de type catalogue, commande en ligne, tableau de bord ou outil interne.
+</Aside>
+
+### Architecture d'une PWA
+
+L'architecture d'une PWA repose sur trois piliers technologiques qui travaillent ensemble pour offrir une expérience fiable et performante.
+
+#### Les trois piliers
+
+<Tabs>
+  <TabItem label="Service Workers">
+    Les **Service Workers** sont des scripts JavaScript exécutés en arrière-plan, indépendamment de la page web. Ils agissent comme un intermédiaire entre l'application, le navigateur et le réseau.
+
+    Leurs responsabilités principales :
+    - **Mise en cache** des ressources pour le fonctionnement hors ligne
+    - **Interception des requêtes réseau** pour servir des réponses depuis le cache
+    - **Gestion des notifications push**
+
+    ```js
+    // Exemple simplifié d'un Service Worker
+    self.addEventListener('install', (event) => {
+      event.waitUntil(
+        caches.open('v1').then((cache) => {
+          return cache.addAll(['/index.html', '/style.css', '/app.js']);
+        })
+      );
+    });
+
+    self.addEventListener('fetch', (event) => {
+      event.respondWith(
+        caches.match(event.request).then((response) => {
+          return response || fetch(event.request);
+        })
+      );
+    });
+    ```
+
+    <Aside type="note">
+      Les Service Workers nécessitent **HTTPS** pour fonctionner (sauf en `localhost` pour le développement).
+    </Aside>
+  </TabItem>
+
+  <TabItem label="Manifeste Web App">
+    Le fichier **`manifest.json`** contient les métadonnées de l'application. Il indique au navigateur comment afficher la PWA lorsqu'elle est installée.
+
+    ```json
+    {
+      "name": "Microbrasserie du Canton",
+      "short_name": "Canton",
+      "description": "Menu et commandes en ligne",
+      "start_url": "/",
+      "display": "standalone",
+      "background_color": "#1a1a2e",
+      "theme_color": "#e94560",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+    ```
+
+    Les propriétés clés :
+    - `name` / `short_name` : nom affiché sur l'écran d'accueil
+    - `start_url` : page de démarrage au lancement
+    - `display` : mode d'affichage (`standalone` = sans barre d'adresse)
+    - `icons` : icônes utilisées par le système d'exploitation
+  </TabItem>
+
+  <TabItem label="Cache API">
+    La **Cache API** permet de stocker localement les ressources de l'application (HTML, CSS, images, scripts). Utilisée conjointement avec les Service Workers, elle garantit une expérience fluide même sans connexion.
+
+    Deux API complémentaires pour la persistance des données :
+    - **LocalStorage** : stockage simple clé-valeur (préférences, paramètres)
+    - **IndexedDB** : base de données côté client pour des volumes de données plus importants
+
+    Ensemble, ces mécanismes assurent que l'application reste fonctionnelle et que les données de l'utilisateur sont préservées, même hors ligne.
+  </TabItem>
+</Tabs>
+
+#### Vue d'ensemble
+
+Le schéma suivant illustre comment les différentes couches interagissent :
+<div style="max-width: 760px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif">
+  <div style="border: 1px solid #c0c0c0; border-radius: 12px; padding: 12px; text-align: center; margin: 0 auto; width: 100%; box-sizing: border-box;">
+    <div style="font-weight: bold; font-size: 22px;">UTILISATEUR</div>
+    <div style="font-size: 16px; margin-top: 6px;">(navigateur / PWA)</div>
+  </div>
+
+  <div style="text-align: center; font-weight: 100; font-size: 60px; line-height: 1; margin: 0; font-family: Arial, sans-serif">↓</div>
+
+  <div style="border: 1px solid #c0c0c0; border-radius: 12px; padding: 12px; text-align: center; margin: 0 auto; width: 100%; box-sizing: border-box;">
+    <div style="font-weight: bold; font-size: 22px;">COUCHE FRONTEND</div>
+    <div style="font-size: 16px; margin-top: 8px;">HTML · CSS · JavaScript · React</div>
+    <div style="font-size: 16px; margin-top: 4px;">Interface utilisateur + logique UI</div>
+  </div>
+
+  <div style="text-align: center; font-weight: 100; font-size: 60px; line-height: 1; margin: 0; font-family: Arial, sans-serif">↓</div>
+
+  <div style="border: 1px solid #c0c0c0; border-radius: 12px; padding: 12px; text-align: center; margin: 0 auto; width: 100%; box-sizing: border-box;">
+    <div style="font-weight: bold; font-size: 22px;">SERVICE WORKER</div>
+    <div style="font-size: 16px; margin-top: 8px;">Cache API · Push API · Interception réseau</div>
+    <div style="font-size: 16px; margin-top: 4px;">manifest.json · LocalStorage · IndexedDB</div>
+  </div>
+
+  <div style="text-align: center; font-weight: 100; font-size: 60px; line-height: 1; margin: 0; font-family: Arial, sans-serif">↓</div>
+
+  <div style="border: 1px solid #c0c0c0; border-radius: 12px; padding: 12px; text-align: center; margin: 0 auto; width: 100%; box-sizing: border-box;">
+    <div style="font-weight: bold; font-size: 22px;">COUCHE BACKEND (externe)</div>
+    <div style="font-size: 16px; margin-top: 8px;">API REST / GraphQL · Base de données</div>
+    <div style="font-size: 16px; margin-top: 4px;">Serveur · Authentification</div>
+  </div>
+</div>
+---
+
+## Cadriciel vs librairie
+
+Avant de plonger dans React, clarifions une distinction fondamentale.
+
+<Tabs>
+  <TabItem label="Cadriciel (Framework)">
+    Un **cadriciel** fournit une structure complète et impose une organisation du code. C'est le framework qui contrôle le flux d'exécution — le développeur s'insère dans l'architecture préétablie.
+
+    **Analogie** : Un cadriciel, c'est comme un template. La structure globale est déjà définie, vous remplissez les champs et personnalisez les composantes.
+
+    **Exemples** : Angular, Next.js, Django
+  </TabItem>
+  <TabItem label="Librairie (Library)">
+    Une **librairie** est un ensemble de fonctions réutilisables que le développeur appelle selon ses besoins. Le développeur garde le contrôle total sur l'architecture et le flux d'exécution.
+
+    **Analogie** : Une librairie, c'est comme une boîte à outils. Vous choisissez quel outil utiliser, quand et comment.
+
+    **Exemples** : React, Lodash, D3.js
+  </TabItem>
+</Tabs>
+
+<Aside type="caution" title="React : librairie ou framework ?">
+  React est officiellement une **librairie** — il ne gère que la couche interface utilisateur. Cependant, son écosystème riche (React Router, Redux, React Query, etc.) lui permet de couvrir les mêmes besoins qu'un framework complet. Dans ce cours, nous utiliserons React avec plusieurs de ces outils complémentaires.
+</Aside>
+
+---
+
+## React
+
+React est une librairie JavaScript open-source, développée par Meta (Facebook), pour construire des interfaces utilisateur modulaires, réactives et performantes.
+
+### Pourquoi React ?
+
+React est la technologie web la plus utilisée par les développeurs professionnels pour construire des applications web modernes ([Survey StackOverflow 2024](https://survey.stackoverflow.co/2024/technology#most-popular-technologies-webframe-prof)). Sa popularité repose sur plusieurs forces : une approche par composants réutilisables, un écosystème mature et une communauté massive.
+
+### Écosystème React
+
+L'écosystème de React complète ses capacités de base pour couvrir tous les aspects du développement d'applications.
+
+<Tabs>
+  <TabItem label="État & données">
+    **Gestion de l'état**
+    - **React Context API** — solution intégrée et légère pour partager l'état entre composants sans passer de props manuellement
+    - **Redux** — solution centralisée pour les grandes applications nécessitant un flux de données prévisible
+
+    **Données asynchrones**
+    - **React Query** — facilite la récupération, la mise en cache et la synchronisation des données d'API. Gère automatiquement les états `loading`, `success` et `error`
+  </TabItem>
+  <TabItem label="Navigation & rendu">
+    **Routage**
+    - **React Router** — gestion de la navigation entre les pages, des paramètres d'URL et de l'historique
+
+    **Rendu serveur**
+    - **Next.js** — framework basé sur React pour le rendu côté serveur (SSR) et la génération statique (SSG), améliorant les performances et le SEO
+  </TabItem>
+  <TabItem label="Tests & mobile">
+    **Tests**
+    - **Jest** — framework de test polyvalent pour les tests unitaires et d'intégration
+    - **React Testing Library** — approche centrée sur l'utilisateur, simulant des interactions réelles
+
+    **Mobile**
+    - **React Native** — créer des applications mobiles natives (iOS/Android) en réutilisant une grande partie du code React
+  </TabItem>
+</Tabs>
+
+### Syntaxe JSX
+
+JSX (JavaScript XML) est une extension de syntaxe qui permet d'écrire du balisage similaire au HTML directement dans un fichier JavaScript. C'est la manière standard de décrire l'interface utilisateur dans React.
+
+```jsx
+// Ceci ressemble à du HTML, mais c'est du JSX !
+const element = <h1>Bonjour, monde !</h1>;
+```
+
+<Aside type="note" title="Ce n'est pas du HTML">
+  Le JSX est transformé en appels `React.createElement()` par le compilateur. C'est du JavaScript déguisé en HTML pour faciliter la lecture.
+</Aside>
+
+L'un des avantages clés du JSX est la possibilité d'intégrer des **expressions JavaScript** directement dans le balisage à l'aide d'accolades `{}` :
+
+```jsx
+const prenom = "Maude";
+const age = 22;
+
+const element = (
+  <div>
+    <h1>Bienvenue, {prenom} !</h1>
+    <p>Vous avez {age} ans.</p>
+    <p>L'an prochain, vous aurez {age + 1} ans.</p>
+  </div>
+);
+```
+
+#### Règles essentielles du JSX
+
+<Steps>
+1. **Un seul élément racine** — Un composant doit retourner un seul élément parent. Utilisez `<div>` ou le fragment `<>...</>` pour regrouper plusieurs éléments.
+
+   ```jsx
+   // ✅ Correct — un seul élément racine
+   return (
+     <div>
+       <h1>Titre</h1>
+       <p>Contenu</p>
+     </div>
+   );
+
+   // ❌ Incorrect — deux éléments racines
+   return (
+     <h1>Titre</h1>
+     <p>Contenu</p>
+   );
+   ```
+
+2. **Toutes les balises doivent être fermées** — Y compris les balises auto-fermantes comme `<img />` et `<br />`.
+
+   ```jsx
+   // ✅ Correct
+   <img src="photo.jpg" alt="Description" />
+
+   // ❌ Incorrect
+   <img src="photo.jpg" alt="Description">
+   ```
+
+3. **`className` au lieu de `class`** — Puisque `class` est un mot réservé en JavaScript, on utilise `className` en JSX.
+
+   ```jsx
+   // ✅ JSX
+   <div className="conteneur">...</div>
+
+   // ❌ Ce n'est pas du JSX valide
+   <div class="conteneur">...</div>
+   ```
+</Steps>
+
+<Aside type="tip" title="Pour aller plus loin">
+  La documentation officielle de React offre un excellent guide sur JSX : [Écrire du balisage avec JSX](https://fr.react.dev/learn/writing-markup-with-jsx)
+</Aside>
+
+---
+
+## Outils de développement
+
+### Le rôle des outils de build
+
+Dans le développement moderne, les outils de compilation (*build tools*) jouent un rôle essentiel. Ils gèrent les dépendances du projet grâce à la modularité d'**ES6** (`import`/`export`), optimisent le code en éliminant les dépendances inutiles (*tree-shaking*), et réduisent la taille des fichiers livrés au navigateur (*bundling*).
+
+### Vite
+
+[Vite](https://vite.dev/) est un outil de build moderne, conçu pour offrir un développement ultra-rapide. Son principal atout : l'utilisation des **ES Modules natifs** du navigateur, ce qui élimine le bundling lourd au démarrage et permet un rechargement quasi-instantané lors des modifications de code (*Hot Module Replacement*).
+
+Vite est compatible avec React, Vue.js, Svelte, et d'autres frameworks.
+
+### Créer un projet React avec Vite
+
+<Steps>
+1. **Ouvrir un terminal** et naviguer vers le dossier où vous souhaitez créer le projet.
+
+2. **Exécuter la commande de création** :
+
+   <Tabs>
+     <TabItem label="macOS / Linux">
+       ```sh
+       npm create vite@latest mon-app -- --template react
+       ```
+     </TabItem>
+     <TabItem label="Windows">
+       ```sh
+       npm create vite@latest mon-app --- --template react
+       ```
+       <Aside type="note">
+         Sur Windows, utilisez **trois tirets** (`---`) au lieu de deux avant `--template`.
+       </Aside>
+     </TabItem>
+   </Tabs>
+
+3. **Installer les dépendances** :
+   ```sh
+   cd mon-app
+   npm install
+   ```
+
+4. **Lancer le serveur de développement** :
+   ```sh
+   npm run dev
+   ```
+   L'application est accessible à l'adresse affichée (généralement `http://localhost:5173`).
+</Steps>
+
+<Aside type="tip" title="Structure du projet généré">
+  Après la création, explorez la structure du projet. Les fichiers clés sont :
+  - `index.html` — point d'entrée HTML
+  - `src/main.jsx` — point d'entrée React
+  - `src/App.jsx` — composant principal
+  - `vite.config.js` — configuration de Vite
+  - `package.json` — dépendances et scripts npm
+</Aside>
+
+---
+
+## Récapitulatif
+
+<CardGrid>
+  <Card title="PWA" icon="rocket">
+    Applications web offrant une expérience native : installation directe, fonctionnement hors ligne, notifications push, multiplateforme.
+  </Card>
+  <Card title="Architecture" icon="setting">
+    Trois piliers : Service Workers (cache, interception réseau), Manifeste (`manifest.json`), et Cache API.
+  </Card>
+  <Card title="Cadriciel vs Librairie" icon="puzzle">
+    Le cadriciel impose la structure et le flux ; la librairie offre des outils sans imposer d'organisation.
+  </Card>
+  <Card title="React + JSX" icon="seti:react">
+    Librairie populaire pour des UI modulaires. JSX permet de combiner logique JavaScript et balisage dans un même fichier.
+  </Card>
+  <Card title="Vite" icon="forward-slash">
+    Outil de build moderne avec démarrage instantané et rechargement rapide grâce aux ES Modules natifs.
+  </Card>
+  <Card title="npm" icon="document">
+    Gestionnaire de paquets pour installer, mettre à jour et gérer les dépendances JavaScript.
+  </Card>
+</CardGrid>
+
+---
+
+## Ressources
+
+- [Introduction aux PWA — MDN (en anglais)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/What_is_a_progressive_web_app)
+- [Introduction aux PWA — web.dev (en anglais)](https://web.dev/articles/what-are-pwas)
+- [Guide d'utilisation de Vite](https://vite.dev/guide/)
+- [Écrire du balisage avec JSX — React (en français)](https://fr.react.dev/learn/writing-markup-with-jsx)
+- [JSX cheatsheet — Codecademy](https://www.codecademy.com/learn/react-101/modules/react-101-jsx-u/cheatsheet)

@@ -1,0 +1,246 @@
+---
+import Icon from "./Icon.astro";
+
+export interface Week {
+    number: string;
+    date: string;
+    startDate: string;
+    title: string;
+    topics: string[];
+    evaluation?: string;
+    isBreak?: boolean;
+}
+
+export interface Phase {
+    label: string;
+    icon: string;
+    range: [number, number];
+}
+
+interface Props {
+    weeks: Week[];
+    phases: Phase[];
+    today?: string;
+}
+
+const { weeks, phases, today } = Astro.props;
+
+function getCurrentWeekIndex(todayOverride?: string): number {
+    const now = todayOverride ? new Date(todayOverride) : new Date();
+    for (let i = weeks.length - 1; i >= 0; i--) {
+        const weekStart = new Date(weeks[i].startDate);
+        if (now >= weekStart) return i;
+    }
+    return -1;
+}
+
+const currentIndex = getCurrentWeekIndex(today);
+
+const isCurrentPhase = (phase: Phase): boolean => currentIndex >= phase.range[0] && currentIndex <= phase.range[1];
+
+const getWeekByPhase = (phase: Phase): Week[] => weeks.slice(phase.range[0], phase.range[1] + 1);
+
+const hasTopic = (week: Week): boolean => week.topics.length > 0;
+---
+
+<div class="calendar">
+    {
+        phases.map((phase) => (
+            <details open={isCurrentPhase(phase)}>
+                <summary class="phase-header">
+                    <span class="phase-icon">
+                        <Icon name={phase.icon} size={18} />
+                    </span>
+                    <span class="phase-label">{phase.label}</span>
+                </summary>
+                <div class="weeks">
+                    {getWeekByPhase(phase).map((week, i) => {
+                        const actualIndex = phase.range[0] + i;
+                        const isCurrent = actualIndex === currentIndex;
+                        const isPast = actualIndex < currentIndex;
+
+                        return (
+                            <div class:list={["week-row", { current: isCurrent, past: isPast, break: week.isBreak, }]}>
+                                <div class="week-number">
+                                    {isCurrent && <span class="current-dot" />}
+                                    <span class="num">Séance {week.number}</span>
+                                    <span class="date">{week.date}</span>
+                                </div>
+                                <div class="week-content">
+                                    <h4 class="week-title">{week.title}</h4>
+                                    {hasTopic(week) && (
+                                        <ul class="bare-list week-topics">
+                                            {week.topics.map((topic)=> (
+                                                <li class="week-topic">{topic}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    {week.evaluation && (
+                                        <span class="week-eval">
+                                            <Icon name="clipboard" size={14} />{week.evaluation}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </details>
+        ))
+    }
+</div>
+
+<style>
+    .calendar {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    details {
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .phase-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: -1rem;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        background: rgba(128, 128, 128, 0.05);
+        user-select: none;
+    }
+
+    .phase-header:hover {
+        background: rgba(128, 128, 128, 0.1);
+    }
+
+    .phase-icon {
+        display: inline-block;
+        font-size: 1.1rem;
+    }
+
+    .weeks {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .week-row {
+        display: flex;
+        gap: 1rem;
+        margin-left: -1rem;
+        padding: 0.6rem 1rem;
+        border-top: 1px solid rgba(128, 128, 128, 0.1);
+        align-items: flex-start;
+        transition: background 0.15s;
+    }
+
+        .week-row.past { opacity: 0.5; }
+        .week-row.current { background: rgba(59, 130, 246, 0.08); border-left: 3px solid rgb(59, 130, 246); opacity: 1; }
+
+        :global([data-theme="dark"]) .week-row.current,
+        :global(.dark) .week-row.current {
+            background: rgba(96, 165, 250, 0.1);
+            border-left-color: rgb(96, 165, 250);
+        }
+
+        .week-row.break { background: rgba(128, 128, 128, 0.05); font-style: italic; }
+
+    .week-number {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 60px;
+        gap: 0.15rem;
+        position: relative;
+    }
+
+        .current-dot {
+            position: absolute;
+            top: 50%;
+            left: -14px;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgb(59, 130, 246);
+        }
+
+        .num {
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+            .week-row.break .num {
+                opacity: 0.7;
+            }
+
+            .week-row.current .num {
+                color: rgb(59, 130, 246);
+                font-size: 1rem;
+            }
+
+            .week-row.current .date {
+                color: #000;
+                font-size: 0.85rem;
+            }
+
+        .date {
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+
+    .week-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        flex: 1;
+    }
+
+        .week-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .week-topics {
+            font-size: 0.8rem;
+            opacity: 0.65;
+            line-height: 1.5;
+        }
+
+        .week-eval {
+            display: inline-flex;
+            gap: 0.2rem;
+            margin-top: 0.25rem;
+            padding: 0.15rem 0.5rem;
+            background: rgba(220, 38, 38, 0.1);
+            color: rgb(220, 38, 38);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            width: fit-content;
+        }
+
+    :global([data-theme="dark"]) .week-eval,
+    :global(.dark) .week-eval {
+        background: rgba(248, 113, 113, 0.12);
+        color: rgb(248, 113, 113);
+    }
+
+    @media (max-width: 480px) {
+        .week-row {
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .week-number {
+            flex-direction: row;
+            gap: 0.5rem;
+        }
+    }
+</style>

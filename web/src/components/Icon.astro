@@ -1,0 +1,70 @@
+---
+/**
+ * Composant de résolution d'icônes Lucide.
+ * Centralise le mapping nom → composant pour tous les composants du site.
+ *
+ * Usage :
+ *   import Icon from './Icon.astro';
+ *   <Icon name="bar-chart" size={18} />
+ */
+
+import {
+  BookOpen,
+  Braces,
+  Calendar,
+  ClipboardList,
+  Cloud,
+  Code,
+  FileText,
+  FlaskConical,
+  GraduationCap,
+  Laptop,
+  Package,
+  Presentation,
+  Puzzle,
+  RefreshCw,
+  Scale,
+  Settings,
+} from "@lucide/astro";
+
+const icons: Record<string, any> = {
+  'book-open':    BookOpen,
+  'braces':       Braces,
+  'calendar':     Calendar,
+  'clipboard':    ClipboardList,
+  'cloud':        Cloud,
+  'code':         Code,
+  'file-text':    FileText,
+  'flask':        FlaskConical,
+  'graduation':   GraduationCap,
+  'laptop':       Laptop,
+  'package':      Package,
+  'presentation':      Presentation,
+  'puzzle':       Puzzle,
+  'refresh':      RefreshCw,
+  'scale':        Scale,
+  'settings':     Settings,
+};
+
+interface Props {
+  name: string;
+  size?: number;
+  class?: string;
+}
+
+const { name, size = 18, class: className } = Astro.props;
+const IconComponent = icons[name];
+---
+
+{IconComponent ? (
+  <IconComponent size={size} class:list={["icon", className]} />
+) : (
+  <i class:list={["icon", className]}>{name}</i>
+)}
+
+<style>
+  .icon { 
+    display: inline-block; 
+    font-style: normal; 
+  }
+</style>

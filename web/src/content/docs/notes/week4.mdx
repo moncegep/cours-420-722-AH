@@ -1,0 +1,351 @@
+---
+title: Routage avec React Router
+description: Gérer la navigation dans une SPA React avec React Router v6
+lastUpdated: 2026-04-16
+---
+
+## Le concept de route
+
+Une **route** est une association entre une URL et une ressource (page, composant, vue). 
+Dans une application web traditionnelle, chaque URL correspond à une requête HTTP : le navigateur demande une page complète au serveur, qui la renvoie. 
+Chaque clic sur un lien recharge donc toute la page.
+
+![SPA vs MPA](https://miro.medium.com/1*5wW89AJMJh5YKX60iVEI5w.jpeg)
+
+Une **Single Page Application** (SPA) charge un unique document HTML, puis met à jour dynamiquement son contenu via JavaScript quand l'utilisateur interagit. 
+La navigation entre « pages » se fait **sans rechargement** : seule la portion concernée de l'interface est re-rendue.
+
+| | Application multi-pages (MPA) | Single Page Application (SPA) |
+|---|---|---|
+| Rendu | Côté serveur, à chaque requête | Côté client, après premier chargement |
+| Changement de page | Rechargement complet | Mise à jour partielle |
+| Premier chargement | Rapide | Plus lent (télécharge l'application entière) |
+| Navigation suivante | Nouvelle requête | Quasi-instantanée |
+
+Dans une SPA React, le **routeur** gère cette navigation côté client : il observe l'URL, et pour chaque URL il décide quel composant afficher.
+
+## React Router
+
+[React Router](https://reactrouter.com) est la bibliothèque de routage de référence pour React. Elle permet de déclarer des routes, de naviguer entre elles et d'accéder aux paramètres d'URL depuis n'importe quel composant.
+
+### Installation
+
+```sh
+npm install react-router-dom
+```
+
+### Configuration de base
+
+Enveloppez votre application dans un `<BrowserRouter>` au point d'entrée :
+
+```jsx title="main.jsx" {3} "<BrowserRouter>" "</BrowserRouter>"
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>
+);
+```
+
+Puis déclarez vos routes avec `<Routes>` et `<Route>` :
+
+```jsx title="App.jsx"
+import { Routes, Route } from 'react-router-dom';
+import Accueil from './pages/Accueil';
+import APropos from './pages/APropos';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/"        element={<Accueil />} />
+      <Route path="/a-propos" element={<APropos />} />
+    </Routes>
+  );
+}
+
+export default App;
+```
+
+`<Routes>` examine l'URL courante et affiche **la première route qui correspond** (et seulement celle-là).
+
+## Naviguer entre les routes
+
+### `<Link>` : le remplaçant de `<a>`
+
+Pour créer un lien interne, utilisez `<Link>` **plutôt que `<a href>`** :
+
+```jsx
+import { Link } from 'react-router-dom';
+
+function Menu() {
+  return (
+    <nav>
+      <Link to="/">Accueil</Link>
+      <Link to="/a-propos">À propos</Link>
+    </nav>
+  );
+}
+```
+
+:::caution[Pourquoi pas `<a href>` ?]
+Une balise `<a href>` classique provoque un **rechargement complet** de la page, ce qui annule l'intérêt de la SPA : tout l'état React est perdu, l'application repart de zéro. `<Link>` intercepte le clic, met à jour l'URL sans rechargement, et laisse le routeur afficher le bon composant.
+
+Réservez `<a href>` aux liens **externes** (vers un autre domaine).
+:::
+
+### `<NavLink>` : un lien qui connaît son état
+
+`<NavLink>` se comporte comme `<Link>`, mais ajoute automatiquement une classe `active` quand l'URL courante correspond à son `to`. Pratique pour mettre en valeur l'onglet de navigation actuellement affiché :
+
+```jsx
+import { NavLink } from 'react-router-dom';
+
+function Menu() {
+  return (
+    <nav>
+      <NavLink
+        to="/"
+        className={({ isActive }) => isActive ? 'actif' : ''}
+      >
+        Accueil
+      </NavLink>
+      <NavLink
+        to="/a-propos"
+        className={({ isActive }) => isActive ? 'actif' : ''}
+      >
+        À propos
+      </NavLink>
+    </nav>
+  );
+}
+```
+
+## Les routes dynamiques
+
+Quand plusieurs URLs partagent la même structure (une par alerte, une par utilisateur, etc.), on utilise une **route dynamique** avec un **paramètre d'URL** précédé de `:` :
+
+```jsx title="App.jsx" "/alertes/:id"
+<Routes>
+  <Route path="/"              element={<Accueil />} />
+  <Route path="/alertes/:id"   element={<DetailAlerte />} />
+</Routes>
+```
+
+`:id` est un segment variable. Les URLs `/alertes/42`, `/alertes/abc`, `/alertes/2026-04-15` correspondent toutes à cette route.
+
+### Lire le paramètre avec `useParams`
+
+Dans le composant cible, on récupère la valeur du paramètre avec le hook `useParams` :
+
+```jsx title="pages/DetailAlerte.jsx"
+import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { getAlerteById } from '../services/alertes';
+
+function DetailAlerte() {
+  const { id } = useParams();
+  const [alerte, setAlerte] = useState(null);
+
+  useEffect(() => {
+    getAlerteById(id).then(setAlerte);
+  }, [id]);
+
+  if (!alerte) return <p>Chargement…</p>;
+
+  return (
+    <article>
+      <h1>{alerte.titre}</h1>
+      <p>{alerte.description}</p>
+    </article>
+  );
+}
+```
+
+### Générer des liens dynamiques
+
+```jsx
+<Link to={`/alertes/${alerte.id}`}>
+  {alerte.titre}
+</Link>
+```
+
+## La navigation programmatique avec `useNavigate`
+
+Parfois, on doit naviguer en réaction à un évènement qui n'est pas un clic sur un lien : soumission de formulaire, bouton « retour », redirection après connexion, etc. On utilise alors le hook `useNavigate` :
+
+```jsx
+import { useNavigate } from 'react-router-dom';
+
+function BoutonRetour() {
+  const navigate = useNavigate();
+
+  return (
+    <button onClick={() => navigate(-1)}>
+      ← Retour
+    </button>
+  );
+}
+```
+
+`navigate` accepte :
+
+- Une **chaîne** : `navigate('/')` ou `navigate('/alertes/42')`
+- Un **entier** : `navigate(-1)` revient en arrière, `navigate(1)` avance (comme les flèches du navigateur)
+- Une **option** : `navigate('/', { replace: true })` remplace l'entrée dans l'historique au lieu d'en ajouter une (utile après connexion).
+
+## Les paramètres de recherche (`useSearchParams`)
+
+Pour stocker des filtres dans l'URL (afin qu'elle soit partageable), on utilise la **chaîne de requête** (`?sujet=Eau&q=travaux`) et le hook `useSearchParams` :
+
+```jsx
+import { useSearchParams } from 'react-router-dom';
+
+function BarreRecherche() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const recherche = searchParams.get('q') ?? '';
+
+  return (
+    <input
+      value={recherche}
+      onChange={(e) => setSearchParams({ q: e.target.value })}
+      placeholder="Rechercher…"
+    />
+  );
+}
+```
+
+**Avantage :** l'URL `https://monapp.ca/?q=piscine` est copiable, partageable, et rafraîchissable. L'état de recherche est préservé.
+
+## La route 404
+
+Pour attraper toutes les URLs qui ne correspondent à aucune route définie, ajoutez une route avec le motif `*` **en dernier** :
+
+```jsx "path=\"*\""
+<Routes>
+  <Route path="/"              element={<Accueil />} />
+  <Route path="/alertes/:id"   element={<DetailAlerte />} />
+  <Route path="*"              element={<PageIntrouvable />} />
+</Routes>
+```
+
+```jsx title="pages/PageIntrouvable.jsx"
+import { Link } from 'react-router-dom';
+
+function PageIntrouvable() {
+  return (
+    <div>
+      <h1>404 — Page introuvable</h1>
+      <Link to="/">Retour à l'accueil</Link>
+    </div>
+  );
+}
+```
+
+## Les mises en page partagées avec `<Outlet>`
+
+Plutôt que de dupliquer l'entête dans chaque page, on définit une route « parente » qui contient un `<Outlet>` à l'emplacement du contenu variable :
+
+```jsx title="components/Layout.jsx"
+import { Outlet } from 'react-router-dom';
+import Entete from './Entete';
+import PiedDePage from './PiedDePage';
+
+function Layout() {
+  return (
+    <>
+      <Entete />
+      <main>
+        <Outlet />
+      </main>
+      <PiedDePage />
+    </>
+  );
+}
+
+export default Layout;
+```
+
+Puis on imbrique les routes sous cette mise en page :
+
+```jsx title="App.jsx" {3} "Layout"
+<Routes>
+  <Route element={<Layout />}>
+    <Route path="/"            element={<Accueil />} />
+    <Route path="/alertes/:id" element={<DetailAlerte />} />
+  </Route>
+  <Route path="*" element={<PageIntrouvable />} />
+</Routes>
+```
+
+Pour les routes imbriquées, `<Outlet>` est remplacé à l'exécution par le composant de la route enfant correspondante. 
+L'entête et le pied de page restent en place ; seul le `<main>` change.
+
+## Organisation d'un projet React Router
+
+Une structure courante et saine pour un projet de la taille du vôtre :
+
+```
+src/
+├── components/         Composants réutilisables (UI)
+│   ├── Entete.jsx
+│   ├── Layout.jsx
+│   └── CarteAlerte.jsx
+├── pages/              Une page = une route
+│   ├── Accueil.jsx
+│   ├── DetailAlerte.jsx
+│   └── PageIntrouvable.jsx
+├── services/           Accès aux données
+│   └── alertes.js
+├── App.jsx             Déclaration des routes
+└── main.jsx            Point d'entrée + <BrowserRouter>
+```
+
+Dans cette convention :
+
+- `/pages` contient les composants qui correspondent à une route.
+- `/components` contient des composants réutilisables (boutons, cartes, entête, etc.).
+- `/services` contient la logique d'accès aux données.
+
+## Erreurs communes à éviter
+
+| Erreur | Symptôme | Correction |
+|---|---|---|
+| Utiliser `<a href="/...">` pour la navigation interne | Rechargement complet, perte d'état | Utiliser `<Link to="/...">` |
+| Oublier d'envelopper dans `<BrowserRouter>` | « useRoutes may be used only in the context of a Router » | Ajouter `<BrowserRouter>` autour de `<App />` dans `main.jsx` |
+| Mettre la route `*` avant les autres | Toutes les URLs tombent sur la 404 | Placer la route `*` **en dernier** dans `<Routes>` |
+| Utiliser `useHistory` (v5) | Erreur : export introuvable | Utiliser `useNavigate` (v6+) |
+| Utiliser `<Switch>` (v5) | Erreur : export introuvable | Utiliser `<Routes>` (v6+) |
+| Oublier `:` devant un paramètre d'URL (`/alertes/id`) | `useParams()` retourne un objet vide | Écrire `path="/alertes/:id"` |
+| Ne pas mettre `id` dans le tableau de dépendances de `useEffect` | Les données ne se rafraîchissent pas quand on passe d'une alerte à l'autre | Inclure `[id]` |
+
+## Récapitulatif
+
+1. Une **SPA** gère la navigation côté client : l'URL change, mais la page ne se recharge pas.
+2. **React Router** associe chaque URL à un composant via `<Routes>` et `<Route>`.
+3. **`<Link>` / `<NavLink>`** remplacent `<a href>` pour la navigation interne.
+4. Les **routes dynamiques** (`/alertes/:id`) et **`useParams`** permettent de gérer des ressources individuelles.
+5. **`useNavigate`** permet la navigation programmatique (retour, redirection après action).
+6. **`useSearchParams`** synchronise l'état d'une recherche ou d'un filtre avec la chaîne de requête de l'URL.
+7. **`<Outlet>`** permet de partager une mise en page entre plusieurs routes.
+8. Une route `path="*"` **en dernier** attrape toutes les URLs non reconnues (404).
+
+## Exercices
+
+1. **Menu principal.** Créez un composant `Menu` qui affiche trois `<NavLink>` (Accueil, À propos, Contact) et applique une classe CSS `actif` au lien courant.
+2. **Route dynamique.** À partir d'une liste d'arrondissements `{ id, nom }`, créez une page d'accueil listant chaque arrondissement sous forme de lien, et une page `/arrondissements/:id` qui affiche le nom correspondant via `useParams`.
+3. **Bouton retour.** Sur la page de détail, ajoutez un bouton qui revient à la page précédente via `useNavigate(-1)`. Que se passe-t-il si l'utilisateur arrive directement sur cette URL (copier-coller) ?
+4. **Filtres dans l'URL.** Créez un composant `FiltreSujet` qui utilise `useSearchParams` pour stocker le sujet sélectionné dans l'URL (`?sujet=Eau`). Rafraîchissez la page : la sélection est préservée.
+5. **Mise en page partagée.** Refactorisez une petite application à deux pages pour utiliser `<Outlet>` et une mise en page commune (entête + pied de page).
+
+## Ressources
+
+- [React Router — Démarrage rapide](https://reactrouter.com/start/declarative/installation)
+- [React Router — Routes dynamiques et `useParams`](https://reactrouter.com/start/declarative/url-values)
+- [React Router — Mise en page et `<Outlet>`](https://reactrouter.com/start/declarative/routing#nested-routes)
+- [MDN — Concept de SPA](https://developer.mozilla.org/fr/docs/Glossary/SPA)
